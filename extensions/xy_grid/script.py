@@ -10,6 +10,7 @@ import pyparsing as pp
 from modules.chat import chatbot_wrapper
 from pathlib import Path
 
+testd = {}
 custom_state = {}
 custom_output = []
 
@@ -112,9 +113,27 @@ def run(x="", y=""):
     output = output + f"<br><br><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">open html file</a>"
     return output
 
+def testf():
+    global testd
+    print("testing function activated")
+
 # Create the interface for the extension (this runs first)
 def ui():
     with gr.Accordion("XY Grid", open=True):
+
+        global testd
+        global testa
+        testh = gr.HTML(value="TEST RESULTS")
+        testb = gr.Button(value="TEST")
+        testb.click(fn=testf, outputs=testh)
+
+        for k in shared.input_elements:
+            testd[k] = shared.gradio[k].value
+            shared.gradio[k].change(lambda x: testd.update({k: x}), shared.gradio[k], [])
+            print(k)
+        shared.gradio['name2'].change(lambda x: testd.update({'name2': x}), shared.gradio['name2'], [])
+        shared.gradio['name2'].change(lambda x: testd.update({'name2': x}), shared.gradio['name2'], [])
+
         prompt = gr.Textbox(placeholder="Comma separated prompts go here...", label='Input Prompts', interactive=True)
         with gr.Row():
             presets_box = gr.Textbox(placeholder="Presets go here. Click the buttton to the right...", label='Presets', interactive=True)
@@ -126,3 +145,5 @@ def ui():
         custom_chat = gr.HTML(value="")
 
     generate_grid.click(get_params, [shared.gradio[k] for k in shared.input_elements], state).then(run, [prompt, presets_box], custom_chat)
+
+#  --model oasst-llama13b-4bit-128g
