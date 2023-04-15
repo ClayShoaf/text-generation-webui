@@ -10,6 +10,7 @@ import pyparsing as pp
 from modules.chat import chatbot_wrapper
 from pathlib import Path
 
+axis_type = {}
 testd = {}
 custom_state = {}
 custom_output = []
@@ -60,12 +61,27 @@ def get_params(*args):
     custom_state = modules.ui.gather_interface_values(*args)
     return json.dumps(custom_state)
 
+# Returns the correct results for the axis type chosen by the axis dropdown box
+def fill_axis(option):
+    fill_data = []
+    if option == "presets":
+        filenames = os.listdir("presets/")
+        for file in filenames:
+            preset = file[:-4]
+            fill_data.append(preset)
+    else:
+        fill_data.append("temp")
+    print(option)
+    return gr.update(label=option, value=", ".join(fill_data))
+
 # The main function that generates the output, formats the html table, and returns it to the interface
 def run(x="", y=""):
     global custom_state
     global custom_output
-    custom_state['seed'] = "420691337"
-    
+    global testd
+
+    x_type=axis_type['x']
+    y_type=axis_type['y']
 
     output = "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;}</style><table><thead><tr><th></th>"
 
@@ -113,12 +129,15 @@ def run(x="", y=""):
     output = output + f"<br><br><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">open html file</a>"
     return output
 
-def testf():
+def testf(flubby=""):
     global testd
     print("testing function activated")
+    return flubby
 
 # Create the interface for the extension (this runs first)
 def ui():
+    global testd
+    global testa
     # Track changes
     shared.gradio['max_new_tokens'].change(lambda x: testd.update({'max_new_tokens': x}), shared.gradio['max_new_tokens'], [])
     shared.gradio['seed'].change(lambda x: testd.update({'seed': x}), shared.gradio['seed'], [])
@@ -163,8 +182,16 @@ def ui():
 
     with gr.Accordion("XY Grid", open=True):
 
-        global testd
-        global testa
+        # Axis selections
+        with gr.Row():
+            xType = gr.Dropdown(label='X Axis', choices=list(["prompts","presets","characters"]), value="prompts", interactive=True)
+            xInput = gr.Textbox(interactive=True)
+            xType.change(fill_axis, xType, xInput)
+        with gr.Row():
+            yType = gr.Dropdown(label='Y Axis', choices=["prompts","presets","characters"], value="prompts", interactive=True)
+            yInput = gr.Textbox(interactive=True)
+            yType.change(fill_axis, yType, yInput)
+
         testh = gr.HTML(value="TEST RESULTS")
         testb = gr.Button(value="TEST")
         testb.click(fn=testf, outputs=testh)
@@ -172,7 +199,6 @@ def ui():
         for k in shared.input_elements:
             testd[k] = shared.gradio[k].value
             shared.gradio[k].change(lambda x: testd.update({k: x}), shared.gradio[k], [])
-            print(k)
 
         prompt = gr.Textbox(placeholder="Comma separated prompts go here...", label='Input Prompts', interactive=True)
         with gr.Row():
@@ -182,6 +208,7 @@ def ui():
         generate_grid = gr.Button("generate_grid")
         with gr.Accordion("Generation Parameters for testing", open=False):
             state = gr.HTML(value="the state will go here")
+        tester = gr.HTML(value="TEST OUTPUT")
         custom_chat = gr.HTML(value="")
 
     generate_grid.click(get_params, [shared.gradio[k] for k in shared.input_elements], state).then(run, [prompt, presets_box], custom_chat)
