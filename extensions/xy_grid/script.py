@@ -10,7 +10,7 @@ import pyparsing as pp
 from modules.chat import chatbot_wrapper
 from pathlib import Path
 
-axis_type = {}
+axis_type = {'x': "prompts", 'y': "prompts"}
 testd = {}
 custom_state = {}
 custom_output = []
@@ -43,16 +43,18 @@ def load_preset_values(preset_menu, state):
     state.update(generate_params)
     return state, *[generate_params[k] for k in ['do_sample', 'temperature', 'top_p', 'typical_p', 'repetition_penalty', 'encoder_repetition_penalty', 'top_k', 'min_length', 'no_repeat_ngram_size', 'num_beams', 'penalty_alpha', 'length_penalty', 'early_stopping']]
 
+# Get all of the characters from the character folder
+def get_characters():
+    paths = (x for x in Path('characters').iterdir() if x.suffix in ('.json', '.yaml', '.yml'))
+    return ", ".join(['None'] + sorted(set((k.stem for k in paths if k.stem != "instruction-following")), key=str.lower))
 
 # Get all of the presets from the presets folder
 def get_presets():
-    global custom_state
     presets = []
     filenames = os.listdir("presets/")
     for file in filenames:
         preset = file[:-4]
         presets.append(preset)
-        custom_state = load_preset_values(preset, custom_state)[0]
     return ", ".join(presets)
 
 # This is a workaround function because gradio has to access parameters if you want them to be current
@@ -63,25 +65,54 @@ def get_params(*args):
 
 # Returns the correct results for the axis type chosen by the axis dropdown box
 def fill_axis(option):
-    fill_data = []
-    if option == "presets":
-        filenames = os.listdir("presets/")
-        for file in filenames:
-            preset = file[:-4]
-            fill_data.append(preset)
+    global axis_get
+    return gr.update(label=option, value=axis_get.get(option))
+
+# Sets the type of data each axis will use
+def set_axis(x, y):
+    global axis_type
+    axis_type.update({'x': x})
+    axis_type.update({'y': y})
+
+
+
+def newrun(x="", y=""):
+    global custom_state
+    global custom_output
+    global axis_type
+    global testd
+    global testa
+
+    # Have to format the strings because gradio makes it difficult to pass lists around
+    x_strings = pp.common.comma_separated_list.parseString(x).asList()
+    y_strings = pp.common.comma_separated_list.parseString(y).asList()
+
+    if axis_type['x'] == "prompts" and axis_type['y'] == "prompts":
+        return "ERROR: Both axes can not be set to 'prompts'"
+    elif axis_type['x'] == "prompts":
+        # Run as if x axis is prompts
+        return "x is prompts"
+    elif axis_type['y'] == "prompts":
+        # Run as if y axis is prompts
+        return "y is prompts"
     else:
-        fill_data.append("temp")
-    print(option)
-    return gr.update(label=option, value=", ".join(fill_data))
+        # Run as if we are taking the prompts testd['textbox']
+        return "neither is prompts"
+
+    output = "newrun() ran"
+    return output
+
+
+
+
+
+
 
 # The main function that generates the output, formats the html table, and returns it to the interface
 def run(x="", y=""):
     global custom_state
     global custom_output
     global testd
-
-    x_type=axis_type['x']
-    y_type=axis_type['y']
 
     output = "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;}</style><table><thead><tr><th></th>"
 
@@ -129,15 +160,23 @@ def run(x="", y=""):
     output = output + f"<br><br><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">open html file</a>"
     return output
 
-def testf(flubby=""):
+def kickback(flubby=""):
     global testd
     print("testing function activated")
     return flubby
+
+axis_get = {
+        'presets': get_presets(),
+        'prompts': kickback(),
+        'characters': get_characters()
+        }
 
 # Create the interface for the extension (this runs first)
 def ui():
     global testd
     global testa
+    global axis_type
+
     # Track changes
     shared.gradio['max_new_tokens'].change(lambda x: testd.update({'max_new_tokens': x}), shared.gradio['max_new_tokens'], [])
     shared.gradio['seed'].change(lambda x: testd.update({'seed': x}), shared.gradio['seed'], [])
@@ -179,6 +218,7 @@ def ui():
     shared.gradio['model_type'].change(lambda x: testd.update({'model_type': x}), shared.gradio['model_type'], [])
     shared.gradio['pre_layer'].change(lambda x: testd.update({'pre_layer': x}), shared.gradio['pre_layer'], [])
     shared.gradio['gpu_memory_0'].change(lambda x: testd.update({'gpu_memory_0': x}), shared.gradio['gpu_memory_0'], [])
+    shared.gradio['textbox'].change(lambda x: testd.update({'textbox': x}), shared.gradio['textbox'], [])
 
     with gr.Accordion("XY Grid", open=True):
 
@@ -186,19 +226,20 @@ def ui():
         with gr.Row():
             xType = gr.Dropdown(label='X Axis', choices=list(["prompts","presets","characters"]), value="prompts", interactive=True)
             xInput = gr.Textbox(interactive=True)
-            xType.change(fill_axis, xType, xInput)
         with gr.Row():
             yType = gr.Dropdown(label='Y Axis', choices=["prompts","presets","characters"], value="prompts", interactive=True)
             yInput = gr.Textbox(interactive=True)
-            yType.change(fill_axis, yType, yInput)
+        xType.change(set_axis, [xType, yType], []).then(fill_axis, xType, xInput)
+        yType.change(set_axis, [xType, yType], []).then(fill_axis, yType, yInput)
 
+        # Testing variables and whatnot
         testh = gr.HTML(value="TEST RESULTS")
         testb = gr.Button(value="TEST")
-        testb.click(fn=testf, outputs=testh)
+        testb.click(newrun, [], testh)
 
         for k in shared.input_elements:
             testd[k] = shared.gradio[k].value
-            shared.gradio[k].change(lambda x: testd.update({k: x}), shared.gradio[k], [])
+            #shared.gradio[k].change(lambda x: testd.update({k: x}), shared.gradio[k], [])
 
         prompt = gr.Textbox(placeholder="Comma separated prompts go here...", label='Input Prompts', interactive=True)
         with gr.Row():
