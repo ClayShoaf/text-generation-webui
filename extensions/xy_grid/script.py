@@ -94,8 +94,11 @@ def run(x="", y=""):
                 for new in chatbot_wrapper(i.strip(), custom_state):
                     custom_output = new
                 output = output + f"<td><b>{custom_state['name1']}:</b> {custom_output[-1][0]}<br><b>{custom_state['name2']}:</b> {custom_output[-1][1]}</td>"
+
+                # Remove the last outputs so they don't influence future generations
                 custom_output.pop()
                 shared.history['internal'].pop()
+
         output = output + "</tr>"
     output = output + "</tbody></table>"
 
