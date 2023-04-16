@@ -87,16 +87,58 @@ def newrun(x="", y=""):
     x_strings = pp.common.comma_separated_list.parseString(x).asList()
     y_strings = pp.common.comma_separated_list.parseString(y).asList()
 
+    output = "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;}</style><table><thead><tr><th></th>"
+
     if axis_type['x'] == "prompts" and axis_type['y'] == "prompts":
         return "ERROR: Both axes can not be set to 'prompts'"
-    elif axis_type['x'] == "prompts":
-        # Run as if x axis is prompts
-        return "x is prompts"
-    elif axis_type['y'] == "prompts":
-        # Run as if y axis is prompts
+
+    
+    elif axis_type['x'] == "prompts":        # Run as if x axis is prompts
+        for i in x_strings:
+            output = output + f"<th>{i.strip()}</th>"
+        output = output + "</thead><tbody>"
+        if y_strings[0] != '':
+            for i in y_strings:
+                output = output + f"<tr><th>{i}</th>"
+                for j in x_strings:
+                    if axis_type['y'] == "presets":
+                        custom_state = load_preset_values(i.strip(), custom_state)[0]
+
+                    # This is the part that actually does the generating
+                    #for new in chatbot_wrapper(j.strip(), custom_state):
+                    #    custom_output = new
+                    custom_output = [['test', 'pest'], ['poop', 'floop']]
+
+                    output = output + f"<td><b>{custom_state['name1']}:</b> {custom_output[-1][0]}<br><b>{custom_state['name2']}:</b> {custom_output[-1][1]}</td>"
+                    custom_output.pop()
+                    #shared.history['internal'].pop()
+
+                output = output + "</tr>"
+        else:
+            output = output + "<tr><th> </th>"
+            for i in x_strings:
+                #for new in chatbot_wrapper(i.strip(), custom_state):
+                #    custom_output = new
+                custom_output = [['test', 'pest'], ['poop', 'floop']]
+                output = output + f"<td><b>{custom_state['name1']}:</b> {custom_output[-1][0]}<br><b>{custom_state['name2']}:</b> {custom_output[-1][1]}</td>"
+
+                # Remove the last outputs so they don't influence future generations
+                custom_output.pop()
+                #shared.history['internal'].pop()
+
+            output = output + "</tr>"
+        output = output + "</tbody></table>"
+
+        return output
+
+
+    elif axis_type['y'] == "prompts":        # Run as if y axis is prompts
+
         return "y is prompts"
-    else:
-        # Run as if we are taking the prompts testd['textbox']
+
+
+    else:        # Run as if we are taking the prompts testd['textbox']
+
         return "neither is prompts"
 
     output = "newrun() ran"
@@ -233,9 +275,9 @@ def ui():
         yType.change(set_axis, [xType, yType], []).then(fill_axis, yType, yInput)
 
         # Testing variables and whatnot
-        testh = gr.HTML(value="TEST RESULTS")
         testb = gr.Button(value="TEST")
-        testb.click(newrun, [], testh)
+        testh = gr.HTML(value="TEST RESULTS")
+        testb.click(get_params, [shared.gradio[k] for k in shared.input_elements], testh).then(newrun, [xInput, yInput], testh)
 
         for k in shared.input_elements:
             testd[k] = shared.gradio[k].value
