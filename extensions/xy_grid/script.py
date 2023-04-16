@@ -7,11 +7,10 @@ import modules.shared as shared
 import modules.ui
 import pyparsing as pp
 
-from modules.chat import chatbot_wrapper
+from modules.chat import chatbot_wrapper, load_character
 from pathlib import Path
 
 axis_type = {'x': "prompts", 'y': "prompts"}
-testd = {}
 custom_state = {}
 custom_output = []
 
@@ -48,6 +47,7 @@ def get_characters():
     paths = (x for x in Path('characters').iterdir() if x.suffix in ('.json', '.yaml', '.yml'))
     return ", ".join(['None'] + sorted(set((k.stem for k in paths if k.stem != "instruction-following")), key=str.lower))
 
+
 # Get all of the presets from the presets folder
 def get_presets():
     presets = []
@@ -80,7 +80,6 @@ def newrun(x="", y=""):
     global custom_state
     global custom_output
     global axis_type
-    global testd
     global testa
 
     # Have to format the strings because gradio makes it difficult to pass lists around
@@ -89,11 +88,13 @@ def newrun(x="", y=""):
 
     output = "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;}</style><table><thead><tr><th></th>"
 
-    if axis_type['x'] == "prompts" and axis_type['y'] == "prompts":
-        return "ERROR: Both axes can not be set to 'prompts'"
+    if axis_type['x'] == axis_type['y']:
+        return "ERROR: both axes cannot be the same setting"
 
     
     elif axis_type['x'] == "prompts":        # Run as if x axis is prompts
+        # Fix
+        custom_state['custom_stopping_strings'] = ""
         for i in x_strings:
             output = output + f"<th>{i.strip()}</th>"
         output = output + "</thead><tbody>"
@@ -101,21 +102,32 @@ def newrun(x="", y=""):
             for i in y_strings:
                 output = output + f"<tr><th>{i}</th>"
                 for j in x_strings:
+
+                    # parse the type of the Y axis and alter custom_state accordingly
                     if axis_type['y'] == "presets":
                         custom_state = load_preset_values(i.strip(), custom_state)[0]
+                    elif axis_type['y'] == "characters":
+                        custom_state['character_menu'] = i.strip()
+                        # Fix
+                        # I know this is garbage code, but it's late and I've been awake for too long
+                        pmet = [custom_state[k] for k in ['character_menu', 'name1', 'name2', 'mode']]
+                        temp = load_character(pmet[0], pmet[1], pmet[2], pmet[3])   #[shared.gradio[k] for k in ['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display']]
+                        temp2 = ['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display']
+                        for m in range(7):
+                            custom_state[temp2[m]] = temp[m]
 
                     # This is the part that actually does the generating
-                    #for new in chatbot_wrapper(j.strip(), custom_state):
-                    #    custom_output = new
-                    custom_output = [['test', 'pest'], ['poop', 'floop']]
+                    for new in chatbot_wrapper(j.strip(), custom_state):
+                        custom_output = new
+                    #custom_output = [['test', 'pest'], ['poop', 'floop']]
 
                     output = output + f"<td><b>{custom_state['name1']}:</b> {custom_output[-1][0]}<br><b>{custom_state['name2']}:</b> {custom_output[-1][1]}</td>"
                     custom_output.pop()
-                    #shared.history['internal'].pop()
+                    shared.history['internal'].pop()
 
                 output = output + "</tr>"
         else:
-            output = output + "<tr><th> </th>"
+            output = output + "<tr><th>ayy</th>"
             for i in x_strings:
                 #for new in chatbot_wrapper(i.strip(), custom_state):
                 #    custom_output = new
@@ -129,6 +141,14 @@ def newrun(x="", y=""):
             output = output + "</tr>"
         output = output + "</tbody></table>"
 
+        # Save the output to a file
+        # Useful for large grids that don't display well in gradio
+        save_filename = f"{datetime.datetime.now().strftime('%Y_%m_%d_%f')}.html"
+        with open(Path(f"extensions/xy_grid/outputs/{save_filename}"), 'w') as outfile:
+            outfile.write(output)
+
+        # Trying to include a link to easily open the html file in a new tab, but I think this is gonna be more confusing than I expected
+        output = output + f"<br><br><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">open html file</a>"
         return output
 
 
@@ -137,7 +157,7 @@ def newrun(x="", y=""):
         return "y is prompts"
 
 
-    else:        # Run as if we are taking the prompts testd['textbox']
+    else:        # Run as if we are taking the prompts custom_state['textbox']
 
         return "neither is prompts"
 
@@ -154,7 +174,6 @@ def newrun(x="", y=""):
 def run(x="", y=""):
     global custom_state
     global custom_output
-    global testd
 
     output = "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;}</style><table><thead><tr><th></th>"
 
@@ -202,9 +221,8 @@ def run(x="", y=""):
     output = output + f"<br><br><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">open html file</a>"
     return output
 
+# Necessary for som stuff because gradio
 def kickback(flubby=""):
-    global testd
-    print("testing function activated")
     return flubby
 
 axis_get = {
@@ -215,52 +233,53 @@ axis_get = {
 
 # Create the interface for the extension (this runs first)
 def ui():
-    global testd
+    global custom_state
     global testa
     global axis_type
 
     # Track changes
-    shared.gradio['max_new_tokens'].change(lambda x: testd.update({'max_new_tokens': x}), shared.gradio['max_new_tokens'], [])
-    shared.gradio['seed'].change(lambda x: testd.update({'seed': x}), shared.gradio['seed'], [])
-    shared.gradio['temperature'].change(lambda x: testd.update({'temperature': x}), shared.gradio['temperature'], [])
-    shared.gradio['top_p'].change(lambda x: testd.update({'top_p': x}), shared.gradio['top_p'], [])
-    shared.gradio['top_k'].change(lambda x: testd.update({'top_k': x}), shared.gradio['top_k'], [])
-    shared.gradio['typical_p'].change(lambda x: testd.update({'typical_p': x}), shared.gradio['typical_p'], [])
-    shared.gradio['repetition_penalty'].change(lambda x: testd.update({'repetition_penalty': x}), shared.gradio['repetition_penalty'], [])
-    shared.gradio['encoder_repetition_penalty'].change(lambda x: testd.update({'encoder_repetition_penalty': x}), shared.gradio['encoder_repetition_penalty'], [])
-    shared.gradio['no_repeat_ngram_size'].change(lambda x: testd.update({'no_repeat_ngram_size': x}), shared.gradio['no_repeat_ngram_size'], [])
-    shared.gradio['min_length'].change(lambda x: testd.update({'min_length': x}), shared.gradio['min_length'], [])
-    shared.gradio['do_sample'].change(lambda x: testd.update({'do_sample': x}), shared.gradio['do_sample'], [])
-    shared.gradio['penalty_alpha'].change(lambda x: testd.update({'penalty_alpha': x}), shared.gradio['penalty_alpha'], [])
-    shared.gradio['num_beams'].change(lambda x: testd.update({'num_beams': x}), shared.gradio['num_beams'], [])
-    shared.gradio['length_penalty'].change(lambda x: testd.update({'length_penalty': x}), shared.gradio['length_penalty'], [])
-    shared.gradio['early_stopping'].change(lambda x: testd.update({'early_stopping': x}), shared.gradio['early_stopping'], [])
-    shared.gradio['add_bos_token'].change(lambda x: testd.update({'add_bos_token': x}), shared.gradio['add_bos_token'], [])
-    shared.gradio['ban_eos_token'].change(lambda x: testd.update({'ban_eos_token': x}), shared.gradio['ban_eos_token'], [])
-    shared.gradio['truncation_length'].change(lambda x: testd.update({'truncation_length': x}), shared.gradio['truncation_length'], [])
-    shared.gradio['custom_stopping_strings'].change(lambda x: testd.update({'custom_stopping_strings': x}), shared.gradio['custom_stopping_strings'], [])
-    shared.gradio['name1'].change(lambda x: testd.update({'name1': x}), shared.gradio['name1'], [])
-    shared.gradio['name2'].change(lambda x: testd.update({'name2': x}), shared.gradio['name2'], [])
-    shared.gradio['greeting'].change(lambda x: testd.update({'greeting': x}), shared.gradio['greeting'], [])
-    shared.gradio['context'].change(lambda x: testd.update({'context': x}), shared.gradio['context'], [])
-    shared.gradio['end_of_turn'].change(lambda x: testd.update({'end_of_turn': x}), shared.gradio['end_of_turn'], [])
-    shared.gradio['chat_prompt_size'].change(lambda x: testd.update({'chat_prompt_size': x}), shared.gradio['chat_prompt_size'], [])
-    shared.gradio['chat_generation_attempts'].change(lambda x: testd.update({'chat_generation_attempts': x}), shared.gradio['chat_generation_attempts'], [])
-    shared.gradio['stop_at_newline'].change(lambda x: testd.update({'stop_at_newline': x}), shared.gradio['stop_at_newline'], [])
-    shared.gradio['mode'].change(lambda x: testd.update({'mode': x}), shared.gradio['mode'], [])
-    shared.gradio['instruction_template'].change(lambda x: testd.update({'instruction_template': x}), shared.gradio['instruction_template'], [])
-    shared.gradio['cpu_memory'].change(lambda x: testd.update({'cpu_memory': x}), shared.gradio['cpu_memory'], [])
-    shared.gradio['auto_devices'].change(lambda x: testd.update({'auto_devices': x}), shared.gradio['auto_devices'], [])
-    shared.gradio['disk'].change(lambda x: testd.update({'disk': x}), shared.gradio['disk'], [])
-    shared.gradio['cpu'].change(lambda x: testd.update({'cpu': x}), shared.gradio['cpu'], [])
-    shared.gradio['bf16'].change(lambda x: testd.update({'bf16': x}), shared.gradio['bf16'], [])
-    shared.gradio['load_in_8bit'].change(lambda x: testd.update({'load_in_8bit': x}), shared.gradio['load_in_8bit'], [])
-    shared.gradio['wbits'].change(lambda x: testd.update({'wbits': x}), shared.gradio['wbits'], [])
-    shared.gradio['groupsize'].change(lambda x: testd.update({'groupsize': x}), shared.gradio['groupsize'], [])
-    shared.gradio['model_type'].change(lambda x: testd.update({'model_type': x}), shared.gradio['model_type'], [])
-    shared.gradio['pre_layer'].change(lambda x: testd.update({'pre_layer': x}), shared.gradio['pre_layer'], [])
-    shared.gradio['gpu_memory_0'].change(lambda x: testd.update({'gpu_memory_0': x}), shared.gradio['gpu_memory_0'], [])
-    shared.gradio['textbox'].change(lambda x: testd.update({'textbox': x}), shared.gradio['textbox'], [])
+    shared.gradio['max_new_tokens'].change(lambda x: custom_state.update({'max_new_tokens': x}), shared.gradio['max_new_tokens'], [])
+    shared.gradio['seed'].change(lambda x: custom_state.update({'seed': x}), shared.gradio['seed'], [])
+    shared.gradio['temperature'].change(lambda x: custom_state.update({'temperature': x}), shared.gradio['temperature'], [])
+    shared.gradio['top_p'].change(lambda x: custom_state.update({'top_p': x}), shared.gradio['top_p'], [])
+    shared.gradio['top_k'].change(lambda x: custom_state.update({'top_k': x}), shared.gradio['top_k'], [])
+    shared.gradio['typical_p'].change(lambda x: custom_state.update({'typical_p': x}), shared.gradio['typical_p'], [])
+    shared.gradio['repetition_penalty'].change(lambda x: custom_state.update({'repetition_penalty': x}), shared.gradio['repetition_penalty'], [])
+    shared.gradio['encoder_repetition_penalty'].change(lambda x: custom_state.update({'encoder_repetition_penalty': x}), shared.gradio['encoder_repetition_penalty'], [])
+    shared.gradio['no_repeat_ngram_size'].change(lambda x: custom_state.update({'no_repeat_ngram_size': x}), shared.gradio['no_repeat_ngram_size'], [])
+    shared.gradio['min_length'].change(lambda x: custom_state.update({'min_length': x}), shared.gradio['min_length'], [])
+    shared.gradio['do_sample'].change(lambda x: custom_state.update({'do_sample': x}), shared.gradio['do_sample'], [])
+    shared.gradio['penalty_alpha'].change(lambda x: custom_state.update({'penalty_alpha': x}), shared.gradio['penalty_alpha'], [])
+    shared.gradio['num_beams'].change(lambda x: custom_state.update({'num_beams': x}), shared.gradio['num_beams'], [])
+    shared.gradio['length_penalty'].change(lambda x: custom_state.update({'length_penalty': x}), shared.gradio['length_penalty'], [])
+    shared.gradio['early_stopping'].change(lambda x: custom_state.update({'early_stopping': x}), shared.gradio['early_stopping'], [])
+    shared.gradio['add_bos_token'].change(lambda x: custom_state.update({'add_bos_token': x}), shared.gradio['add_bos_token'], [])
+    shared.gradio['ban_eos_token'].change(lambda x: custom_state.update({'ban_eos_token': x}), shared.gradio['ban_eos_token'], [])
+    shared.gradio['truncation_length'].change(lambda x: custom_state.update({'truncation_length': x}), shared.gradio['truncation_length'], [])
+    shared.gradio['custom_stopping_strings'].change(lambda x: custom_state.update({'custom_stopping_strings': x}), shared.gradio['custom_stopping_strings'], [])
+    shared.gradio['name1'].change(lambda x: custom_state.update({'name1': x}), shared.gradio['name1'], [])
+    shared.gradio['name2'].change(lambda x: custom_state.update({'name2': x}), shared.gradio['name2'], [])
+    shared.gradio['greeting'].change(lambda x: custom_state.update({'greeting': x}), shared.gradio['greeting'], [])
+    shared.gradio['context'].change(lambda x: custom_state.update({'context': x}), shared.gradio['context'], [])
+    shared.gradio['end_of_turn'].change(lambda x: custom_state.update({'end_of_turn': x}), shared.gradio['end_of_turn'], [])
+    shared.gradio['chat_prompt_size'].change(lambda x: custom_state.update({'chat_prompt_size': x}), shared.gradio['chat_prompt_size'], [])
+    shared.gradio['chat_generation_attempts'].change(lambda x: custom_state.update({'chat_generation_attempts': x}), shared.gradio['chat_generation_attempts'], [])
+    shared.gradio['stop_at_newline'].change(lambda x: custom_state.update({'stop_at_newline': x}), shared.gradio['stop_at_newline'], [])
+    shared.gradio['mode'].change(lambda x: custom_state.update({'mode': x}), shared.gradio['mode'], [])
+    shared.gradio['instruction_template'].change(lambda x: custom_state.update({'instruction_template': x}), shared.gradio['instruction_template'], [])
+    shared.gradio['cpu_memory'].change(lambda x: custom_state.update({'cpu_memory': x}), shared.gradio['cpu_memory'], [])
+    shared.gradio['auto_devices'].change(lambda x: custom_state.update({'auto_devices': x}), shared.gradio['auto_devices'], [])
+    shared.gradio['disk'].change(lambda x: custom_state.update({'disk': x}), shared.gradio['disk'], [])
+    shared.gradio['cpu'].change(lambda x: custom_state.update({'cpu': x}), shared.gradio['cpu'], [])
+    shared.gradio['bf16'].change(lambda x: custom_state.update({'bf16': x}), shared.gradio['bf16'], [])
+    shared.gradio['load_in_8bit'].change(lambda x: custom_state.update({'load_in_8bit': x}), shared.gradio['load_in_8bit'], [])
+    shared.gradio['wbits'].change(lambda x: custom_state.update({'wbits': x}), shared.gradio['wbits'], [])
+    shared.gradio['groupsize'].change(lambda x: custom_state.update({'groupsize': x}), shared.gradio['groupsize'], [])
+    shared.gradio['model_type'].change(lambda x: custom_state.update({'model_type': x}), shared.gradio['model_type'], [])
+    shared.gradio['pre_layer'].change(lambda x: custom_state.update({'pre_layer': x}), shared.gradio['pre_layer'], [])
+    shared.gradio['gpu_memory_0'].change(lambda x: custom_state.update({'gpu_memory_0': x}), shared.gradio['gpu_memory_0'], [])
+    shared.gradio['textbox'].change(lambda x: custom_state.update({'textbox': x}), shared.gradio['textbox'], [])
+    shared.gradio['character_menu'].change(lambda x: custom_state.update({'character_menu': x}), shared.gradio['character_menu'], [])
 
     with gr.Accordion("XY Grid", open=True):
 
@@ -277,11 +296,12 @@ def ui():
         # Testing variables and whatnot
         testb = gr.Button(value="TEST")
         testh = gr.HTML(value="TEST RESULTS")
-        testb.click(get_params, [shared.gradio[k] for k in shared.input_elements], testh).then(newrun, [xInput, yInput], testh)
+        testb.click(newrun, [xInput, yInput], testh)
 
         for k in shared.input_elements:
-            testd[k] = shared.gradio[k].value
-            #shared.gradio[k].change(lambda x: testd.update({k: x}), shared.gradio[k], [])
+            custom_state[k] = shared.gradio[k].value
+        custom_state['character_menu'] = shared.gradio['character_menu'].value
+            #shared.gradio[k].change(lambda x: custom_state.update({k: x}), shared.gradio[k], [])
 
         prompt = gr.Textbox(placeholder="Comma separated prompts go here...", label='Input Prompts', interactive=True)
         with gr.Row():
