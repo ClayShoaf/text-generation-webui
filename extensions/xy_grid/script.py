@@ -47,7 +47,6 @@ def get_characters():
     paths = (x for x in Path('characters').iterdir() if x.suffix in ('.json', '.yaml', '.yml'))
     return ", ".join(['None'] + sorted(set((k.stem for k in paths if k.stem != "instruction-following")), key=str.lower))
 
-
 # Get all of the presets from the presets folder
 def get_presets():
     presets = []
@@ -82,6 +81,9 @@ def newrun(x="", y=""):
     global axis_type
     global testa
 
+    if custom_state['custom_stopping_strings'] == None:
+        custom_state['custom_stopping_strings'] = ""
+
     # Have to format the strings because gradio makes it difficult to pass lists around
     x_strings = pp.common.comma_separated_list.parseString(x).asList()
     y_strings = pp.common.comma_separated_list.parseString(y).asList()
@@ -106,11 +108,7 @@ def newrun(x="", y=""):
                         custom_state = load_preset_values(i.strip(), custom_state)[0]
                     elif axis_type['y'] == "characters":
                         custom_state['character_menu'] = i.strip()
-                        # Fix
-                        # I know this is garbage code, but it's late and I've been awake for too long
-                        temp = load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode'])
-                        temp2 = ['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display']
-                        custom_state.update({k: v for k, v in zip(temp2, temp)})
+                        custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
 
                     # This is the part that actually does the generating
                     for new in chatbot_wrapper(j.strip(), custom_state):
@@ -123,16 +121,16 @@ def newrun(x="", y=""):
 
                 output = output + "</tr>"
         else:
-            output = output + "<tr><th>ayy</th>"
+            output = output + "<tr><th></th>"
             for i in x_strings:
-                #for new in chatbot_wrapper(i.strip(), custom_state):
-                #    gen_output = new
-                gen_output = [['test', 'pest'], ['poop', 'floop']]
+                for new in chatbot_wrapper(i.strip(), custom_state):
+                    gen_output = new
+                #gen_output = [['test', 'pest'], ['poop', 'floop']]
                 output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
 
                 # Remove the last outputs so they don't influence future generations
                 gen_output.pop()
-                #shared.history['internal'].pop()
+                shared.history['internal'].pop()
 
             output = output + "</tr>"
         output = output + "</tbody></table>"
@@ -232,7 +230,10 @@ def ui():
     global testa
     global axis_type
 
-    # Track changes
+    # Grab all of the variable from shared.gradio and put them in the custom_state dictionary
+    custom_state.update({k: v for k, v in zip([key for key in shared.gradio if not isinstance(shared.gradio[key], (gr.Blocks, gr.Button, gr.State))], [shared.gradio[k].value for k in [key for key in shared.gradio] if not isinstance(shared.gradio[k], (gr.Blocks, gr.Button, gr.State))])})
+
+    # Track changes to all variables in shared.gradio
     shared.gradio['add_bos_token'].change(lambda x: custom_state.update({'add_bos_token': x}), shared.gradio['add_bos_token'], [])
     shared.gradio['auto_devices'].change(lambda x: custom_state.update({'auto_devices': x}), shared.gradio['auto_devices'], [])
     shared.gradio['ban_eos_token'].change(lambda x: custom_state.update({'ban_eos_token': x}), shared.gradio['ban_eos_token'], [])
@@ -318,13 +319,13 @@ def ui():
 
     with gr.Accordion("XY Grid", open=True):
 
-        # Axis selections
+        # Axis selections and inputs
         with gr.Row():
             xType = gr.Dropdown(label='X Axis', choices=list(["prompts","presets","characters"]), value="prompts", interactive=True)
-            xInput = gr.Textbox(interactive=True)
+            xInput = gr.Textbox(label=xType.value, interactive=True)
         with gr.Row():
             yType = gr.Dropdown(label='Y Axis', choices=["prompts","presets","characters"], value="prompts", interactive=True)
-            yInput = gr.Textbox(interactive=True)
+            yInput = gr.Textbox(label=yType.value, interactive=True)
         xType.change(set_axis, [xType, yType], []).then(fill_axis, xType, xInput)
         yType.change(set_axis, [xType, yType], []).then(fill_axis, yType, yInput)
 
@@ -334,11 +335,6 @@ def ui():
         testh = gr.HTML(value="TEST RESULTS")
         testb.click(newrun, [xInput, yInput], testh)
         testd.click(kickback, [], [])
-
-        for k in shared.input_elements:
-            custom_state[k] = shared.gradio[k].value if shared.gradio[k].value != None else ""
-        custom_state['character_menu'] = shared.gradio['character_menu'].value
-            #shared.gradio[k].change(lambda x: custom_state.update({k: x}), shared.gradio[k], [])
 
         prompt = gr.Textbox(placeholder="Comma separated prompts go here...", label='Input Prompts', interactive=True)
         with gr.Row():
