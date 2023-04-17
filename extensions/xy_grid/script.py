@@ -12,7 +12,7 @@ from pathlib import Path
 
 axis_type = {'x': "prompts", 'y': "prompts"}
 custom_state = {}
-custom_output = []
+gen_output = []
 
 # I had to steal this from server.py because the program freaks out if I try to `import server`
 def load_preset_values(preset_menu, state):
@@ -78,7 +78,7 @@ def set_axis(x, y):
 
 def newrun(x="", y=""):
     global custom_state
-    global custom_output
+    global gen_output
     global axis_type
     global testa
 
@@ -108,19 +108,17 @@ def newrun(x="", y=""):
                         custom_state['character_menu'] = i.strip()
                         # Fix
                         # I know this is garbage code, but it's late and I've been awake for too long
-                        pmet = [custom_state[k] for k in ['character_menu', 'name1', 'name2', 'mode']]
-                        temp = load_character(pmet[0], pmet[1], pmet[2], pmet[3])   #[shared.gradio[k] for k in ['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display']]
+                        temp = load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode'])
                         temp2 = ['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display']
-                        for m in range(7):
-                            custom_state[temp2[m]] = temp[m]
+                        custom_state.update({k: v for k, v in zip(temp2, temp)})
 
                     # This is the part that actually does the generating
                     for new in chatbot_wrapper(j.strip(), custom_state):
-                        custom_output = new
-                    #custom_output = [['test', 'pest'], ['poop', 'floop']]
+                        gen_output = new
+                    #gen_output = [['test', 'pest'], ['poop', 'floop']]
 
-                    output = output + f"<td><b>{custom_state['name1']}:</b> {custom_output[-1][0]}<br><b>{custom_state['name2']}:</b> {custom_output[-1][1]}</td>"
-                    custom_output.pop()
+                    output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
+                    gen_output.pop()
                     shared.history['internal'].pop()
 
                 output = output + "</tr>"
@@ -128,12 +126,12 @@ def newrun(x="", y=""):
             output = output + "<tr><th>ayy</th>"
             for i in x_strings:
                 #for new in chatbot_wrapper(i.strip(), custom_state):
-                #    custom_output = new
-                custom_output = [['test', 'pest'], ['poop', 'floop']]
-                output = output + f"<td><b>{custom_state['name1']}:</b> {custom_output[-1][0]}<br><b>{custom_state['name2']}:</b> {custom_output[-1][1]}</td>"
+                #    gen_output = new
+                gen_output = [['test', 'pest'], ['poop', 'floop']]
+                output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
 
                 # Remove the last outputs so they don't influence future generations
-                custom_output.pop()
+                gen_output.pop()
                 #shared.history['internal'].pop()
 
             output = output + "</tr>"
@@ -170,7 +168,7 @@ def newrun(x="", y=""):
 # The main function that generates the output, formats the html table, and returns it to the interface
 def run(x="", y=""):
     global custom_state
-    global custom_output
+    global gen_output
 
     output = "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;}</style><table><thead><tr><th></th>"
 
@@ -189,20 +187,20 @@ def run(x="", y=""):
 
                 # This is the part that actually does the generating
                 for new in chatbot_wrapper(i.strip(), custom_state):
-                    custom_output = new
+                    gen_output = new
 
-                output = output + f"<td><b>{custom_state['name1']}:</b> {custom_output[-1][0]}<br><b>{custom_state['name2']}:</b> {custom_output[-1][1]}</td>"
-                custom_output.pop()
+                output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
+                gen_output.pop()
                 shared.history['internal'].pop()
 
             output = output + "</tr>"
         else:
                 for new in chatbot_wrapper(i.strip(), custom_state):
-                    custom_output = new
-                output = output + f"<td><b>{custom_state['name1']}:</b> {custom_output[-1][0]}<br><b>{custom_state['name2']}:</b> {custom_output[-1][1]}</td>"
+                    gen_output = new
+                output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
 
                 # Remove the last outputs so they don't influence future generations
-                custom_output.pop()
+                gen_output.pop()
                 shared.history['internal'].pop()
 
         output = output + "</tr>"
@@ -331,9 +329,11 @@ def ui():
         yType.change(set_axis, [xType, yType], []).then(fill_axis, yType, yInput)
 
         # Testing variables and whatnot
-        testb = gr.Button(value="TEST")
+        testb = gr.Button(value="TEST GENERATION")
+        testd = gr.Button(value="breakpoint")
         testh = gr.HTML(value="TEST RESULTS")
         testb.click(newrun, [xInput, yInput], testh)
+        testd.click(kickback, [], [])
 
         for k in shared.input_elements:
             custom_state[k] = shared.gradio[k].value if shared.gradio[k].value != None else ""
