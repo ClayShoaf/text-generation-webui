@@ -96,7 +96,6 @@ def newrun(x="", y=""):
 
     if axis_type['x'] == axis_type['y']:
         return "ERROR: both axes cannot be the same setting"
-
     
     elif axis_type['x'] == "prompts":        # Run as if x axis is prompts
         for i in x_strings:
@@ -137,17 +136,6 @@ def newrun(x="", y=""):
                 shared.history['internal'].pop()
 
             output = output + "</tr>"
-        output = output + "</tbody></table>"
-
-        # Save the output to a file
-        # Useful for large grids that don't display well in gradio
-        save_filename = f"{datetime.datetime.now().strftime('%Y_%m_%d_%f')}.html"
-        with open(Path(f"extensions/xy_grid/outputs/{save_filename}"), 'w') as outfile:
-            outfile.write(output)
-
-        # Trying to include a link to easily open the html file in a new tab, but I think this is gonna be more confusing than I expected
-        output = output + f"<br><br><h1><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">[ <em>open html file</em> ]</a></h1>"
-        return output
 
 
     elif axis_type['y'] == "prompts":        # Run as if y axis is prompts
@@ -190,65 +178,94 @@ def newrun(x="", y=""):
                 gen_output.pop()
                 shared.history['internal'].pop()
 
-        output = output + "</tbody></table>"
-
-        # Save the output to a file
-        # Useful for large grids that don't display well in gradio
-        save_filename = f"{datetime.datetime.now().strftime('%Y_%m_%d_%f')}.html"
-        with open(Path(f"extensions/xy_grid/outputs/{save_filename}"), 'w') as outfile:
-            outfile.write(output)
-
-        # Trying to include a link to easily open the html file in a new tab, but I think this is gonna be more confusing than I expected
-        output = output + f"<br><br><h1><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">[ <em>open html file</em> ]</a></h1>"
-        return output
 
 
     else:        # Take the prompts from custom_state['textbox']
         for i in x_strings:
             output = output + f"<th>{i.strip()}</th>"
         output = output + "</thead><tbody>"
-        if y_strings[0] != '':
-            if x_strings[0] != '':
-                for i in y_strings:
-                    output = output + f"<tr><th>{i}</th>"
-                    for j in x_strings:
-                        # parse the types of the axes and alter custom_state accordingly
-                        if axis_type['y'] == "presets":
-                            custom_state = load_preset_values(i.strip(), custom_state)[0]
-                        elif axis_type['y'] == "characters":
-                            custom_state['character_menu'] = i.strip()
-                            custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
-                            
-                        if axis_type['x'] == "presets":
-                            custom_state = load_preset_values(j.strip(), custom_state)[0]
-                        elif axis_type['x'] == "characters":
-                            custom_state['character_menu'] = j.strip()
-                            custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+        if y_strings[0] != '' and x_strings[0] != '':
+            for i in y_strings:
+                output = output + f"<tr><th>{i}</th>"
+                for j in x_strings:
+                    # parse the types of the axes and alter custom_state accordingly
+                    if axis_type['y'] == "presets":
+                        custom_state = load_preset_values(i.strip(), custom_state)[0]
+                    elif axis_type['y'] == "characters":
+                        custom_state['character_menu'] = i.strip()
+                        custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+                        
+                    if axis_type['x'] == "presets":
+                        custom_state = load_preset_values(j.strip(), custom_state)[0]
+                    elif axis_type['x'] == "characters":
+                        custom_state['character_menu'] = j.strip()
+                        custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
 
-                        # This is the part that actually does the generating
-                        for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
-                            gen_output = new
+                    # This is the part that actually does the generating
+                    for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
+                        gen_output = new
 
-                        output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
-                        gen_output.pop()
-                        shared.history['internal'].pop()
+                    output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
+                    gen_output.pop()
+                    shared.history['internal'].pop()
 
-                    output = output + "</tr>"
+                output = output + "</tr>"
+
+        elif x_strings[0] != '':
+            output = output + "<tr><th></th>"
+            for i in x_strings:
+
+                # parse the types of the axes and alter custom_state accordingly
+                if axis_type['x'] == "presets":
+                    custom_state = load_preset_values(i.strip(), custom_state)[0]
+                elif axis_type['x'] == "characters":
+                    custom_state['character_menu'] = i.strip()
+                    custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+
+                # Run the actual text generator
+                for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
+                    gen_output = new
+                output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
+
+                # Remove the last outputs so they don't influence future generations
+                gen_output.pop()
+                shared.history['internal'].pop()
+
+            output = output + "</tr>"
+
+        
+        elif y_strings[0] != '':
+            output = output + "<tr><th></th>"
+            for i in y_strings:
+                # parse the types of the axes and alter custom_state accordingly
+                if axis_type['y'] == "presets":
+                    custom_state = load_preset_values(i.strip(), custom_state)[0]
+                elif axis_type['y'] == "characters":
+                    custom_state['character_menu'] = i.strip()
+                    custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+                    
+                # Run the actual text generator
+                for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
+                    gen_output = new
+                output = output + f"<tr><tr><th>{i}</th><td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td></tr>"
+
+                # Remove the last outputs so they don't influence future generations
+                gen_output.pop()
+                shared.history['internal'].pop()
 
         else:
-            return "STILL WORKING ON THIS PART"
+            return "ERROR: both fields are empty"
 
-        output = output + "</tbody></table>"
+    output = output + "</tbody></table>"
 
-        # Save the output to a file
-        # Useful for large grids that don't display well in gradio
-        save_filename = f"{datetime.datetime.now().strftime('%Y_%m_%d_%f')}.html"
-        with open(Path(f"extensions/xy_grid/outputs/{save_filename}"), 'w') as outfile:
-            outfile.write(output)
+    # Save the output to a file
+    # Useful for large grids that don't display well in gradio
+    save_filename = f"{datetime.datetime.now().strftime('%Y_%m_%d_%f')}.html"
+    with open(Path(f"extensions/xy_grid/outputs/{save_filename}"), 'w') as outfile:
+        outfile.write(output)
 
-        # Trying to include a link to easily open the html file in a new tab, but I think this is gonna be more confusing than I expected
-        output = output + f"<br><br><h1><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">[ <em>open html file</em> ]</a></h1>"
-        return output
+    # Trying to include a link to easily open the html file in a new tab, but I think this is gonna be more confusing than I expected
+    output = output + f"<br><br><h1><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">[ <em>open html file</em> ]</a></h1>"
 
     return output
 
