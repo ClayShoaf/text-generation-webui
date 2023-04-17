@@ -65,7 +65,11 @@ def get_params(*args):
 # Returns the correct results for the axis type chosen by the axis dropdown box
 def fill_axis(option):
     global axis_get
-    return gr.update(label=option, value=axis_get.get(option))
+    global custom_state
+    if option == "prompts":
+        return gr.update(label=option, value=custom_state['textbox'])
+    else:
+        return gr.update(label=option, value=axis_get.get(option))
 
 # Sets the type of data each axis will use
 def set_axis(x, y):
@@ -142,18 +146,109 @@ def newrun(x="", y=""):
             outfile.write(output)
 
         # Trying to include a link to easily open the html file in a new tab, but I think this is gonna be more confusing than I expected
-        output = output + f"<br><br><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">open html file</a>"
+        output = output + f"<br><br><h1><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">[ <em>open html file</em> ]</a></h1>"
         return output
 
 
     elif axis_type['y'] == "prompts":        # Run as if y axis is prompts
+        if x_strings[0] != '':
+            for i in x_strings:
+                output = output + f"<th>{i.strip()}</th>"
+            output = output + "</thead><tbody>"
+            for i in y_strings:
+                output = output + f"<tr><th>{i}</th>"
+                for j in x_strings:
 
-        return "y is prompts"
+                    # parse the type of the X axis and alter custom_state accordingly
+                    if axis_type['x'] == "presets":
+                        custom_state = load_preset_values(j.strip(), custom_state)[0]
+                    elif axis_type['x'] == "characters":
+                        custom_state['character_menu'] = j.strip()
+                        custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+
+                    # This is the part that actually does the generating
+                    for new in chatbot_wrapper(i.strip(), custom_state):
+                        gen_output = new
+                    #gen_output = [['test', 'pest'], ['poop', 'floop']]
+
+                    output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
+                    gen_output.pop()
+                    shared.history['internal'].pop()
+
+                output = output + "</tr>"
+        else:
+            for i in x_strings:
+                output = output + f"<th>{i.strip()}</th>"
+            output = output + "</thead><tbody>"
+            for i in y_strings:
+                for new in chatbot_wrapper(i.strip(), custom_state):
+                    gen_output = new
+                #gen_output = [['test', 'pest'], ['poop', 'floop']]
+                output = output + f"<tr><tr><th>{i}</th><td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td></tr>"
+
+                # Remove the last outputs so they don't influence future generations
+                gen_output.pop()
+                shared.history['internal'].pop()
+
+        output = output + "</tbody></table>"
+
+        # Save the output to a file
+        # Useful for large grids that don't display well in gradio
+        save_filename = f"{datetime.datetime.now().strftime('%Y_%m_%d_%f')}.html"
+        with open(Path(f"extensions/xy_grid/outputs/{save_filename}"), 'w') as outfile:
+            outfile.write(output)
+
+        # Trying to include a link to easily open the html file in a new tab, but I think this is gonna be more confusing than I expected
+        output = output + f"<br><br><h1><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">[ <em>open html file</em> ]</a></h1>"
+        return output
 
 
-    else:        # Run as if we are taking the prompts custom_state['textbox']
+    else:        # Take the prompts from custom_state['textbox']
+        for i in x_strings:
+            output = output + f"<th>{i.strip()}</th>"
+        output = output + "</thead><tbody>"
+        if y_strings[0] != '':
+            if x_strings[0] != '':
+                for i in y_strings:
+                    output = output + f"<tr><th>{i}</th>"
+                    for j in x_strings:
+                        # parse the types of the axes and alter custom_state accordingly
+                        if axis_type['y'] == "presets":
+                            custom_state = load_preset_values(i.strip(), custom_state)[0]
+                        elif axis_type['y'] == "characters":
+                            custom_state['character_menu'] = i.strip()
+                            custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+                            
+                        if axis_type['x'] == "presets":
+                            custom_state = load_preset_values(j.strip(), custom_state)[0]
+                        elif axis_type['x'] == "characters":
+                            custom_state['character_menu'] = j.strip()
+                            custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
 
-        return "neither is prompts"
+                        # This is the part that actually does the generating
+                        for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
+                            gen_output = new
+
+                        output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
+                        gen_output.pop()
+                        shared.history['internal'].pop()
+
+                    output = output + "</tr>"
+
+        else:
+            return "STILL WORKING ON THIS PART"
+
+        output = output + "</tbody></table>"
+
+        # Save the output to a file
+        # Useful for large grids that don't display well in gradio
+        save_filename = f"{datetime.datetime.now().strftime('%Y_%m_%d_%f')}.html"
+        with open(Path(f"extensions/xy_grid/outputs/{save_filename}"), 'w') as outfile:
+            outfile.write(output)
+
+        # Trying to include a link to easily open the html file in a new tab, but I think this is gonna be more confusing than I expected
+        output = output + f"<br><br><h1><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">[ <em>open html file</em> ]</a></h1>"
+        return output
 
     return output
 
@@ -324,17 +419,20 @@ def ui():
             xType = gr.Dropdown(label='X Axis', choices=list(["prompts","presets","characters"]), value="prompts", interactive=True)
             xInput = gr.Textbox(label=xType.value, interactive=True)
         with gr.Row():
-            yType = gr.Dropdown(label='Y Axis', choices=["prompts","presets","characters"], value="prompts", interactive=True)
+            yType = gr.Dropdown(label='Y Axis', choices=["prompts","presets","characters"], value="presets", interactive=True)
             yInput = gr.Textbox(label=yType.value, interactive=True)
         xType.change(set_axis, [xType, yType], []).then(fill_axis, xType, xInput)
         yType.change(set_axis, [xType, yType], []).then(fill_axis, yType, yInput)
 
         # Testing variables and whatnot
+        test_throw = gr.Textbox(label='Kick to textbox', interactive=True)
         testb = gr.Button(value="TEST GENERATION")
         testd = gr.Button(value="breakpoint")
         testh = gr.HTML(value="TEST RESULTS")
+        #test_throw.change(kickback, test_throw, shared.gradio['textbox'])
         testb.click(newrun, [xInput, yInput], testh)
         testd.click(kickback, [], [])
+
 
         prompt = gr.Textbox(placeholder="Comma separated prompts go here...", label='Input Prompts', interactive=True)
         with gr.Row():
