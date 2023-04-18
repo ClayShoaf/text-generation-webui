@@ -95,7 +95,7 @@ def newrun(x="", y=""):
     output = "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;}</style><table><thead><tr><th></th>"
 
     if axis_type['x'] == axis_type['y']:
-        return "ERROR: both axes cannot be the same setting"
+        return "<h1><span style=\"color: red;\">ERROR: both axes cannot be the same setting</span>"
     
     elif axis_type['x'] == "prompts":        # Run as if x axis is prompts
         for i in x_strings:
@@ -254,7 +254,7 @@ def newrun(x="", y=""):
                 shared.history['internal'].pop()
 
         else:
-            return "ERROR: both fields are empty"
+            return "<h1><span style=\"color: red;\">ERROR: both fields are empty</span>"
 
     output = output + "</tbody></table>"
 
@@ -325,6 +325,8 @@ def run(x="", y=""):
     # Trying to include a link to easily open the html file in a new tab, but I think this is gonna be more confusing than I expected
     output = output + f"<br><br><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">open html file</a>"
     return output
+
+
 
 # Necessary for som stuff because gradio
 def kickback(flubby=""):
@@ -442,26 +444,13 @@ def ui():
         yType.change(set_axis, [xType, yType], []).then(fill_axis, yType, yInput)
 
         # Testing variables and whatnot
-        test_throw = gr.Textbox(label='Kick to textbox', interactive=True)
-        testb = gr.Button(value="TEST GENERATION")
-        testd = gr.Button(value="breakpoint")
-        testh = gr.HTML(value="TEST RESULTS")
-        #test_throw.change(kickback, test_throw, shared.gradio['textbox'])
-        testb.click(newrun, [xInput, yInput], testh)
+        testd = gr.Button(value="breakpoint", visible=False)
         testd.click(kickback, [], [])
 
 
-        prompt = gr.Textbox(placeholder="Comma separated prompts go here...", label='Input Prompts', interactive=True)
-        with gr.Row():
-            presets_box = gr.Textbox(placeholder="Presets go here. Click the buttton to the right...", label='Presets', interactive=True)
-            refresh_presets = modules.ui.ToolButton(value='\U0001f504', elem_id='refresh-button')
-            refresh_presets.click(fn=get_presets, outputs=presets_box)
         generate_grid = gr.Button("generate_grid")
-        with gr.Accordion("Generation Parameters for testing", open=False):
-            state = gr.HTML(value="the state will go here")
-        tester = gr.HTML(value="TEST OUTPUT")
         custom_chat = gr.HTML(value="")
 
-    generate_grid.click(get_params, [shared.gradio[k] for k in shared.input_elements], state).then(run, [prompt, presets_box], custom_chat)
+        generate_grid.click(newrun, [xInput, yInput], custom_chat)
 
 #  --model oasst-llama13b-4bit-128g
