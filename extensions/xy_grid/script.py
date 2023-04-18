@@ -105,11 +105,11 @@ def parse_axis(axis, value):
             custom_state['character_menu'] = shared.gradio["character_menu"].value
         custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
     #SEEDS
-    elif axis_type[axis] == "":
+    elif axis_type[axis] == "seeds":
         if value.strip() != "":
-            custom_state[''] = value.strip()
+            custom_state['seed'] = value.strip()
         else:
-            custom_state[''] = shared.gradio[''].value
+            custom_state['seed'] = shared.gradio['seed'].value
 #    #TEMPLATE
 #    elif axis_type[axis] == "":
 #        if value.strip() != "":
@@ -168,7 +168,7 @@ def run(constant_seed, seed_value, x="", y=""):
                     for new in chatbot_wrapper(j.strip(), custom_state):
                         gen_output = new
 
-                    output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
+                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
                     gen_output.pop()
                     shared.history['internal'].pop()
 
@@ -178,7 +178,7 @@ def run(constant_seed, seed_value, x="", y=""):
             for i in x_strings:
                 for new in chatbot_wrapper(i.strip(), custom_state):
                     gen_output = new
-                output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
+                output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
 
                 # Remove the last outputs so they don't influence future generations
                 gen_output.pop()
@@ -204,7 +204,7 @@ def run(constant_seed, seed_value, x="", y=""):
                     for new in chatbot_wrapper(i.strip(), custom_state):
                         gen_output = new
 
-                    output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
+                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
                     gen_output.pop()
                     shared.history['internal'].pop()
 
@@ -213,7 +213,7 @@ def run(constant_seed, seed_value, x="", y=""):
             for i in y_strings:
                 for new in chatbot_wrapper(i.strip(), custom_state):
                     gen_output = new
-                output = output + f"<tr><tr><th>{i}</th><td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td></tr>"
+                output = output + f"<tr><tr><th>{i}</th><td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td></tr>"
 
                 # Remove the last outputs so they don't influence future generations
                 gen_output.pop()
@@ -237,7 +237,7 @@ def run(constant_seed, seed_value, x="", y=""):
                     for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
                         gen_output = new
 
-                    output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
+                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
                     gen_output.pop()
                     shared.history['internal'].pop()
 
@@ -253,7 +253,7 @@ def run(constant_seed, seed_value, x="", y=""):
                 # Run the actual text generator
                 for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
                     gen_output = new
-                output = output + f"<td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td>"
+                output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
 
                 # Remove the last outputs so they don't influence future generations
                 gen_output.pop()
@@ -270,7 +270,7 @@ def run(constant_seed, seed_value, x="", y=""):
                 # Run the actual text generator
                 for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
                     gen_output = new
-                output = output + f"<tr><th>{i}</th><td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td></tr>"
+                output = output + f"<tr><th>{i}</th><td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td></tr>"
 
                 # Remove the last outputs so they don't influence future generations
                 gen_output.pop()
@@ -295,9 +295,11 @@ def run(constant_seed, seed_value, x="", y=""):
 
 
 # Necessary for some stuff because gradio
-def kickback(flubby=""):
-    return flubby
+def kickback(var=""):
+    return var
 def gr_kickback(var):
+    return gr.update(value=var)
+def toggle_visible(var):
     if not var:
         custom_state['seed'] = -1
     return gr.update(visible=var)
@@ -305,7 +307,8 @@ def gr_kickback(var):
 axis_get = {
         'presets': get_presets(),
         'prompts': kickback(),
-        'characters': get_characters()
+        'characters': get_characters(),
+        'seeds': "-1"
         }
 
 # Create the interface for the extension (this runs first)
@@ -385,23 +388,28 @@ def ui():
 
         # Axis selections and inputs
         with gr.Row():
-            xType = gr.Dropdown(label='X Axis', choices=list(["prompts","presets","characters"]), value="prompts", interactive=True)
+            xType = gr.Dropdown(label='X Axis', choices=list(["prompts","presets","characters","seeds"]), value="prompts", interactive=True)
             xInput = gr.Textbox(label=xType.value, interactive=True)
         with gr.Row():
-            yType = gr.Dropdown(label='Y Axis', choices=["prompts","presets","characters"], value="presets", interactive=True)
+            yType = gr.Dropdown(label='Y Axis', choices=["prompts","presets","characters", "seeds"], value="presets", interactive=True)
             yInput = gr.Textbox(label=yType.value, value=axis_get[yType.value], interactive=True)
         xType.change(set_axis, [xType, yType], []).then(fill_axis, xType, xInput)
         yType.change(set_axis, [xType, yType], []).then(fill_axis, yType, yInput)
         with gr.Row():
             seedInput = gr.Checkbox(label='Use a constant seed', value=False)
             debugToggle = gr.Checkbox(label='Show breakpoint button', value=False)
+            swapXY = gr.Button(value='Swap X/Y Axes 🔀')
         with gr.Row():
             seedValue = gr.Textbox(label='Seed', value="-1", visible=False, interactive=True)
         # Testing variables and whatnot
         testd = gr.Button(value="breakpoint", visible=False)
         testd.click(kickback, [], [])
-        debugToggle.change(gr_kickback, debugToggle, testd)
-        seedInput.change(gr_kickback, seedInput, seedValue)
+        debugToggle.change(toggle_visible, debugToggle, testd)
+        seedInput.change(toggle_visible, seedInput, seedValue)
+        #Fix
+        dirtyButton = gr.Dropdown(label='Dirty', choices=list(["prompts","presets","characters","seeds"]), value="prompts", interactive=True)
+        dirtyText = gr.Textbox(value='')
+        swapXY.click(gr_kickback, xType, dirtyButton).then(gr_kickback, xInput, dirtyText).then(gr_kickback, yType, xType).then(gr_kickback, yInput, xInput).then(gr_kickback, dirtyButton, yType).then(gr_kickback, dirtyText, yInput)
 
 
 
