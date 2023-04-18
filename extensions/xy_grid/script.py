@@ -1,6 +1,7 @@
 import os
 import json
 import datetime
+import random
 
 import gradio as gr
 import modules.shared as shared
@@ -10,7 +11,7 @@ import pyparsing as pp
 from modules.chat import chatbot_wrapper, load_character
 from pathlib import Path
 
-axis_type = {'x': "prompts", 'y': "prompts"}
+axis_type = {'x': "prompts", 'y': "presets"}
 custom_state = {}
 gen_output = []
 
@@ -83,30 +84,54 @@ def set_axis(x, y):
     axis_type.update({'y': y})
 
 
+# Parse the type of the X axis and alter custom_state accordingly
+# If you want to add more axes, this is where you would do it. 
+# Add logic here, add an entry to axis_type{}, and add it to the dropdown menus
 def parse_axis(axis, value):
     global custom_state
     global axis_type
-    # parse the type of the X axis and alter custom_state accordingly
+
+    #PRESETS
     if axis_type[axis] == "presets":
         if value.strip() != "":
             custom_state = load_preset_values(value.strip(), custom_state)[0]
         else:
             custom_state = load_preset_values(shared.gradio['preset_menu'].value, custom_state)[0]
+    #CHARACTERS
     elif axis_type[axis] == "characters":
         if value.strip() != "":
             custom_state['character_menu'] = value.strip()
         else:
             custom_state['character_menu'] = shared.gradio["character_menu"].value
         custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+    #SEEDS
+    elif axis_type[axis] == "":
+        if value.strip() != "":
+            custom_state[''] = value.strip()
+        else:
+            custom_state[''] = shared.gradio[''].value
+#    #TEMPLATE
+#    elif axis_type[axis] == "":
+#        if value.strip() != "":
+#            custom_state[''] = value.strip()
+#        else:
+#            custom_state[''] = shared.gradio[''].value
+    
     return None
 
 
-def run(x="", y=""):
+def run(constant_seed, seed_value, x="", y=""):
 
     global custom_state
     global gen_output
     global axis_type
     global testa
+
+    if constant_seed:
+        if seed_value == "-1":
+            custom_state['seed'] = random.randint(1, 2**31)
+        else:
+            custom_state['seed'] = seed_value
 
     if custom_state['custom_stopping_strings'] == None:
         custom_state['custom_stopping_strings'] = ""
@@ -206,7 +231,6 @@ def run(x="", y=""):
                 for j in x_strings:
                     # parse the types of the axes and alter custom_state accordingly
                     parse_axis("y", i)
-                        
                     parse_axis("x", j)
 
                     # This is the part that actually does the generating
@@ -266,12 +290,17 @@ def run(x="", y=""):
     # Include a link to the generated HTML file
     output = output + f"<br><br><h1><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">[ <em>open html file</em> ]</a></h1>"
 
+    custom_state['seed'] = -1
     return output
 
 
-# Necessary for som stuff because gradio
+# Necessary for some stuff because gradio
 def kickback(flubby=""):
     return flubby
+def gr_kickback(var):
+    if not var:
+        custom_state['seed'] = -1
+    return gr.update(visible=var)
 
 axis_get = {
         'presets': get_presets(),
@@ -284,6 +313,7 @@ def ui():
     global custom_state
     global testa
     global axis_type
+    global axis_get
 
     # Grab all of the variable from shared.gradio and put them in the custom_state dictionary
     custom_state.update({k: v for k, v in zip([key for key in shared.gradio if not isinstance(shared.gradio[key], (gr.Blocks, gr.Button, gr.State))], [shared.gradio[k].value for k in [key for key in shared.gradio] if not isinstance(shared.gradio[k], (gr.Blocks, gr.Button, gr.State))])})
@@ -359,16 +389,23 @@ def ui():
             xInput = gr.Textbox(label=xType.value, interactive=True)
         with gr.Row():
             yType = gr.Dropdown(label='Y Axis', choices=["prompts","presets","characters"], value="presets", interactive=True)
-            yInput = gr.Textbox(label=yType.value, interactive=True)
+            yInput = gr.Textbox(label=yType.value, value=axis_get[yType.value], interactive=True)
         xType.change(set_axis, [xType, yType], []).then(fill_axis, xType, xInput)
         yType.change(set_axis, [xType, yType], []).then(fill_axis, yType, yInput)
-
+        with gr.Row():
+            seedInput = gr.Checkbox(label='Use a constant seed', value=False)
+            debugToggle = gr.Checkbox(label='Show breakpoint button', value=False)
+        with gr.Row():
+            seedValue = gr.Textbox(label='Seed', value="-1", visible=False, interactive=True)
         # Testing variables and whatnot
         testd = gr.Button(value="breakpoint", visible=False)
         testd.click(kickback, [], [])
+        debugToggle.change(gr_kickback, debugToggle, testd)
+        seedInput.change(gr_kickback, seedInput, seedValue)
+
 
 
         generate_grid = gr.Button("generate_grid")
         custom_chat = gr.HTML(value="")
 
-        generate_grid.click(run, [xInput, yInput], custom_chat)
+        generate_grid.click(run, [seedInput, seedValue, xInput, yInput], custom_chat)
