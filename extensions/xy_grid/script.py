@@ -40,6 +40,7 @@ def load_preset_values(preset_menu, state):
     generate_params['temperature'] = min(1.99, generate_params['temperature'])
 
     state.update(generate_params)
+    custom_state['preset_menu'] = preset_menu
     return state, *[generate_params[k] for k in ['do_sample', 'temperature', 'top_p', 'typical_p', 'repetition_penalty', 'encoder_repetition_penalty', 'top_k', 'min_length', 'no_repeat_ngram_size', 'num_beams', 'penalty_alpha', 'length_penalty', 'early_stopping']]
 
 # Get all of the characters from the character folder
@@ -78,6 +79,24 @@ def set_axis(x, y):
     axis_type.update({'y': y})
 
 
+def parse_axis(axis, value):
+    global custom_state
+    global axis_type
+    # parse the type of the X axis and alter custom_state accordingly
+    if axis_type[axis] == "presets":
+        if value.strip() != "":
+            custom_state = load_preset_values(value.strip(), custom_state)[0]
+        else:
+            custom_state = load_preset_values(shared.gradio['preset_menu'], custom_state)[0]
+    elif axis_type[axis] == "characters":
+        if value.strip() != "":
+            custom_state['character_menu'] = value.strip()
+        else:
+            custom_state['character_menu'] = shared.gradio["character_menu"]
+        custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+    return None
+
+
 
 def newrun(x="", y=""):
     global custom_state
@@ -89,8 +108,14 @@ def newrun(x="", y=""):
         custom_state['custom_stopping_strings'] = ""
 
     # Have to format the strings because gradio makes it difficult to pass lists around
-    x_strings = pp.common.comma_separated_list.parseString(x).asList()
-    y_strings = pp.common.comma_separated_list.parseString(y).asList()
+    if x == "":
+        x_strings = ""
+    else:
+        x_strings = pp.common.comma_separated_list.parseString(x).asList()
+    if y == "":
+        y_strings = ""
+    else:
+        y_strings = pp.common.comma_separated_list.parseString(y).asList()
 
     output = "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;}</style><table><thead><tr><th></th>"
 
@@ -101,17 +126,13 @@ def newrun(x="", y=""):
         for i in x_strings:
             output = output + f"<th>{i.strip()}</th>"
         output = output + "</thead><tbody>"
-        if y_strings[0] != '':
+        if y_strings != '':
             for i in y_strings:
                 output = output + f"<tr><th>{i}</th>"
                 for j in x_strings:
 
                     # parse the type of the Y axis and alter custom_state accordingly
-                    if axis_type['y'] == "presets":
-                        custom_state = load_preset_values(i.strip(), custom_state)[0]
-                    elif axis_type['y'] == "characters":
-                        custom_state['character_menu'] = i.strip()
-                        custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+                    parse_axis("y", i)
 
                     # This is the part that actually does the generating
                     for new in chatbot_wrapper(j.strip(), custom_state):
@@ -139,20 +160,16 @@ def newrun(x="", y=""):
 
 
     elif axis_type['y'] == "prompts":        # Run as if y axis is prompts
-        if x_strings[0] != '':
-            for i in x_strings:
-                output = output + f"<th>{i.strip()}</th>"
-            output = output + "</thead><tbody>"
+        for i in x_strings:
+            output = output + f"<th>{i.strip()}</th>"
+        output = output + "</thead><tbody>"
+        if x_strings != '':
             for i in y_strings:
                 output = output + f"<tr><th>{i}</th>"
                 for j in x_strings:
 
                     # parse the type of the X axis and alter custom_state accordingly
-                    if axis_type['x'] == "presets":
-                        custom_state = load_preset_values(j.strip(), custom_state)[0]
-                    elif axis_type['x'] == "characters":
-                        custom_state['character_menu'] = j.strip()
-                        custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+                    parse_axis("x", j)
 
                     # This is the part that actually does the generating
                     for new in chatbot_wrapper(i.strip(), custom_state):
@@ -165,9 +182,6 @@ def newrun(x="", y=""):
 
                 output = output + "</tr>"
         else:
-            for i in x_strings:
-                output = output + f"<th>{i.strip()}</th>"
-            output = output + "</thead><tbody>"
             for i in y_strings:
                 for new in chatbot_wrapper(i.strip(), custom_state):
                     gen_output = new
@@ -179,27 +193,18 @@ def newrun(x="", y=""):
                 shared.history['internal'].pop()
 
 
-
     else:        # Take the prompts from custom_state['textbox']
         for i in x_strings:
             output = output + f"<th>{i.strip()}</th>"
         output = output + "</thead><tbody>"
-        if y_strings[0] != '' and x_strings[0] != '':
+        if y_strings != '' and x_strings != '':
             for i in y_strings:
                 output = output + f"<tr><th>{i}</th>"
                 for j in x_strings:
                     # parse the types of the axes and alter custom_state accordingly
-                    if axis_type['y'] == "presets":
-                        custom_state = load_preset_values(i.strip(), custom_state)[0]
-                    elif axis_type['y'] == "characters":
-                        custom_state['character_menu'] = i.strip()
-                        custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+                    parse_axis("y", i)
                         
-                    if axis_type['x'] == "presets":
-                        custom_state = load_preset_values(j.strip(), custom_state)[0]
-                    elif axis_type['x'] == "characters":
-                        custom_state['character_menu'] = j.strip()
-                        custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+                    parse_axis("x", j)
 
                     # This is the part that actually does the generating
                     for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
@@ -211,16 +216,12 @@ def newrun(x="", y=""):
 
                 output = output + "</tr>"
 
-        elif x_strings[0] != '':
+        elif x_strings != '':
             output = output + "<tr><th></th>"
-            for i in x_strings:
+            for j in x_strings:
 
                 # parse the types of the axes and alter custom_state accordingly
-                if axis_type['x'] == "presets":
-                    custom_state = load_preset_values(i.strip(), custom_state)[0]
-                elif axis_type['x'] == "characters":
-                    custom_state['character_menu'] = i.strip()
-                    custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+                parse_axis("x", j)
 
                 # Run the actual text generator
                 for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
@@ -234,20 +235,15 @@ def newrun(x="", y=""):
             output = output + "</tr>"
 
         
-        elif y_strings[0] != '':
-            output = output + "<tr><th></th>"
+        elif y_strings != '':
             for i in y_strings:
                 # parse the types of the axes and alter custom_state accordingly
-                if axis_type['y'] == "presets":
-                    custom_state = load_preset_values(i.strip(), custom_state)[0]
-                elif axis_type['y'] == "characters":
-                    custom_state['character_menu'] = i.strip()
-                    custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
+                parse_axis("y", i)
                     
                 # Run the actual text generator
                 for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
                     gen_output = new
-                output = output + f"<tr><tr><th>{i}</th><td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td></tr>"
+                output = output + f"<tr><th>{i}</th><td><b>{custom_state['name1']}:</b> {gen_output[-1][0]}<br><b>{custom_state['name2']}:</b> {gen_output[-1][1]}</td></tr>"
 
                 # Remove the last outputs so they don't influence future generations
                 gen_output.pop()
@@ -291,7 +287,7 @@ def run(x="", y=""):
     output = output + "</thead><tbody>"
     for i in x_strings:
         output = output + f"<tr><th>{i}</th>"
-        if y_strings[0] != '':
+        if y_strings != '':
             for j in y_strings:
                 custom_state = load_preset_values(j.strip(), custom_state)[0]
 
