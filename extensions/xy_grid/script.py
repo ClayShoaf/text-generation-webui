@@ -113,12 +113,11 @@ def parse_axis(axis, value):
     return None
 
 
-def run(constant_seed, seed_value, x="", y=""):
+def run(constant_seed, seed_value, use_history, x="", y=""):
 
     global custom_state
     global gen_output
     global axis_type
-    global testa
 
     if constant_seed:
         if seed_value == "-1":
@@ -126,9 +125,11 @@ def run(constant_seed, seed_value, x="", y=""):
         else:
             custom_state['seed'] = seed_value
 
+    temp_history = shared.history['internal']
+    if not use_history:
+        shared.history['internal'] = shared.history['internal'][:1]
+
     # Gather output json info, from before the X/Y parameters take effect
-    #error_fixer = lambda o: f"<<non-serializable: {type(o).__qualname__}>>"
-    #output_json = json.dumps(custom_state, default=error_fixer)
     output_json = {k: custom_state[k] for k in shared.input_elements}
 
     if custom_state['custom_stopping_strings'] == None:
@@ -290,9 +291,11 @@ def run(constant_seed, seed_value, x="", y=""):
         outparams.write(json.dumps(output_json))
 
     # Include a link to the generated HTML file
-    output = output + f"<br><br><h2><a href=\"file/extensions/xy_grid/outputs/{output_filename}\" target=\"_blank\">[ <span style=\"color: blue;\"><em>open html file 🔗</em></span> ]</a></h2>"
+    output = output + f"<br><br><h2><a href=\"file/extensions/xy_grid/outputs/{output_filename}.html\" target=\"_blank\">[ <em>open html file 🔗</em> ]</a></h2>"
 
+    # Clean up some of the changes the were made during this generation
     custom_state['seed'] = -1
+    shared.history['internal'] = temp_history
     return output
 
 
@@ -316,7 +319,6 @@ axis_get = {
 # Create the interface for the extension (this runs first)
 def ui():
     global custom_state
-    global testa
     global axis_type
     global axis_get
 
@@ -414,4 +416,4 @@ def ui():
         generate_grid = gr.Button("generate_grid")
         custom_chat = gr.HTML(value="")
 
-        generate_grid.click(run, [seedInput, seedValue, xInput, yInput], custom_chat)
+        generate_grid.click(run, [seedInput, seedValue, useHistory, xInput, yInput], custom_chat)
