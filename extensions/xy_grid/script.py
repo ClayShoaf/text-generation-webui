@@ -60,13 +60,6 @@ def get_presets():
     return ", ".join(presets)
 
 
-# This is a workaround function because gradio has to access parameters if you want them to be current
-def get_params(*args):
-    global custom_state
-    custom_state = modules.ui.gather_interface_values(*args)
-    return json.dumps(custom_state)
-
-
 # Returns the correct results for the axis type chosen by the axis dropdown box
 def fill_axis(option):
     global axis_get
@@ -132,6 +125,11 @@ def run(constant_seed, seed_value, x="", y=""):
             custom_state['seed'] = random.randint(1, 2**31)
         else:
             custom_state['seed'] = seed_value
+
+    # Gather output json info, from before the X/Y parameters take effect
+    #error_fixer = lambda o: f"<<non-serializable: {type(o).__qualname__}>>"
+    #output_json = json.dumps(custom_state, default=error_fixer)
+    output_json = {k: custom_state[k] for k in shared.input_elements}
 
     if custom_state['custom_stopping_strings'] == None:
         custom_state['custom_stopping_strings'] = ""
@@ -282,13 +280,17 @@ def run(constant_seed, seed_value, x="", y=""):
     output = output + "</tbody></table>"
 
     # Save the output to a file
-    # Useful for large grids that don't display well in gradio
-    save_filename = f"{datetime.datetime.now().strftime('%Y_%m_%d_%f')}.html"
-    with open(Path(f"extensions/xy_grid/outputs/{save_filename}"), 'w') as outfile:
+    output_folder = Path("extensions/xy_grid/outputs")
+    if not Path(output_folder).exists():
+        os.mkdir(output_folder)
+    output_filename = Path(f"{datetime.datetime.now().strftime('%Y_%m_%d_%H%M%S')}")
+    with open(Path(f"{output_folder}/{output_filename}.html"), 'w') as outfile:
         outfile.write(output)
+    with open(Path(f"{output_folder}/{output_filename}.json"), 'w') as outparams:
+        outparams.write(json.dumps(output_json))
 
     # Include a link to the generated HTML file
-    output = output + f"<br><br><h2><a href=\"file/extensions/xy_grid/outputs/{save_filename}\" target=\"_blank\">[ <span style=\"color: blue;\"><em>open html file 🔗</em></span> ]</a></h2>"
+    output = output + f"<br><br><h2><a href=\"file/extensions/xy_grid/outputs/{output_filename}\" target=\"_blank\">[ <span style=\"color: blue;\"><em>open html file 🔗</em></span> ]</a></h2>"
 
     custom_state['seed'] = -1
     return output
