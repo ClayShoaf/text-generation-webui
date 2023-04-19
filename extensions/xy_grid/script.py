@@ -5,7 +5,6 @@ import random
 
 import gradio as gr
 import modules.shared as shared
-import modules.ui
 import pyparsing as pp
 
 from modules.chat import chatbot_wrapper, load_character
@@ -14,6 +13,7 @@ from pathlib import Path
 axis_type = {'x': "prompts", 'y': "presets"}
 custom_state = {}
 gen_output = []
+
 
 # I had to steal this from server.py because the program freaks out if I try to `import server`
 def load_preset_values(preset_menu, state):
@@ -43,6 +43,7 @@ def load_preset_values(preset_menu, state):
     state.update(generate_params)
     custom_state['preset_menu'] = preset_menu
     return state, *[generate_params[k] for k in ['do_sample', 'temperature', 'top_p', 'typical_p', 'repetition_penalty', 'encoder_repetition_penalty', 'top_k', 'min_length', 'no_repeat_ngram_size', 'num_beams', 'penalty_alpha', 'length_penalty', 'early_stopping']]
+
 
 # Get all of the characters from the character folder
 def get_characters():
@@ -84,32 +85,31 @@ def parse_axis(axis, value):
     global custom_state
     global axis_type
 
-    #PRESETS
+    # PRESETS
     if axis_type[axis] == "presets":
         if value.strip() != "":
             custom_state = load_preset_values(value.strip(), custom_state)[0]
         else:
             custom_state = load_preset_values(shared.gradio['preset_menu'].value, custom_state)[0]
-    #CHARACTERS
+    # CHARACTERS
     elif axis_type[axis] == "characters":
         if value.strip() != "":
             custom_state['character_menu'] = value.strip()
         else:
             custom_state['character_menu'] = shared.gradio["character_menu"].value
         custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
-    #SEEDS
+    # SEEDS
     elif axis_type[axis] == "seeds":
         if value.strip() != "":
             custom_state['seed'] = value.strip()
         else:
             custom_state['seed'] = shared.gradio['seed'].value
-#    #TEMPLATE
+#    # TEMPLATE
 #    elif axis_type[axis] == "":
 #        if value.strip() != "":
 #            custom_state[''] = value.strip()
 #        else:
 #            custom_state[''] = shared.gradio[''].value
-    
     return None
 
 
@@ -126,13 +126,11 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
             custom_state['seed'] = seed_value
 
     temp_history = shared.history['internal']
-    if not use_history:
-        shared.history['internal'] = shared.history['internal'][:1]
 
     # Gather output json info, from before the X/Y parameters take effect
     output_json = {k: custom_state[k] for k in shared.input_elements}
 
-    if custom_state['custom_stopping_strings'] == None:
+    if custom_state['custom_stopping_strings'] is None:
         custom_state['custom_stopping_strings'] = ""
 
     # Have to format the strings because gradio makes it difficult to pass lists around
@@ -162,6 +160,10 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
 
                     # parse the type of the Y axis and alter custom_state accordingly
                     parse_axis("y", i)
+                    
+                    # This was at the top of the function, but for some reason it broke with a recent update
+                    if not use_history:
+                        shared.history['internal'] = shared.history['internal'][:1]
 
                     # This is the part that actually does the generating
                     for new in chatbot_wrapper(j.strip().strip('"'), custom_state):
@@ -179,12 +181,11 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     gen_output = new
                 output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
 
-                # Remove the last outputs so they don't influence future generations
+                # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
                 shared.history['internal'].pop()
 
             output = output + "</tr>"
-
 
     # Run as if y axis is prompts
     elif axis_type['y'] == "prompts":
@@ -198,6 +199,10 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
 
                     # parse the type of the X axis and alter custom_state accordingly
                     parse_axis("x", j)
+
+                    # This was at the top of the function, but for some reason it broke with a recent update
+                    if not use_history:
+                        shared.history['internal'] = shared.history['internal'][:1]
 
                     # This is the part that actually does the generating
                     for new in chatbot_wrapper(i.strip().strip('"'), custom_state):
@@ -214,10 +219,9 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     gen_output = new
                 output = output + f"<tr><tr><th>{i.strip()}</th><td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td></tr>"
 
-                # Remove the last outputs so they don't influence future generations
+                # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
                 shared.history['internal'].pop()
-
 
     # Take the prompts from custom_state['textbox']
     else:
@@ -231,6 +235,10 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     # parse the types of the axes and alter custom_state accordingly
                     parse_axis("y", i)
                     parse_axis("x", j)
+
+                    # This was at the top of the function, but for some reason it broke with a recent update
+                    if not use_history:
+                        shared.history['internal'] = shared.history['internal'][:1]
 
                     # This is the part that actually does the generating
                     for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
@@ -249,29 +257,36 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                 # parse the types of the axes and alter custom_state accordingly
                 parse_axis("x", j)
 
+                # This was at the top of the function, but for some reason it broke with a recent update
+                if not use_history:
+                    shared.history['internal'] = shared.history['internal'][:1]
+
                 # Run the actual text generator
                 for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
                     gen_output = new
                 output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
 
-                # Remove the last outputs so they don't influence future generations
+                # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
                 shared.history['internal'].pop()
 
             output = output + "</tr>"
-
         
         elif y_strings != '':
             for i in y_strings:
                 # parse the types of the axes and alter custom_state accordingly
                 parse_axis("y", i)
+
+                # This was at the top of the function, but for some reason it broke with a recent update
+                if not use_history:
+                    shared.history['internal'] = shared.history['internal'][:1]
                     
                 # Run the actual text generator
                 for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
                     gen_output = new
                 output = output + f"<tr><th>{i.strip()}</th><td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td></tr>"
 
-                # Remove the last outputs so they don't influence future generations
+                # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
                 shared.history['internal'].pop()
 
@@ -293,28 +308,30 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
     # Include a link to the generated HTML file
     output = output + f"<br><br><h2><a href=\"file/extensions/xy_grid/outputs/{output_filename}.html\" target=\"_blank\">[ <em>open html file 🔗</em> ]</a></h2>"
 
-    # Clean up some of the changes the were made during this generation
+    # Clean up some of the changes that were made during this generation
     custom_state['seed'] = -1
     shared.history['internal'] = temp_history
     return output
 
 
 # Necessary for some stuff because gradio
-def kickback(var=""):
-    return var
 def swap_axes(x_menu, x_data, y_menu, y_data):
     return y_menu, y_data, gr.update(label=y_menu), x_menu, x_data, gr.update(label=x_menu)
+
+
 def toggle_visible(var):
     if not var:
         custom_state['seed'] = -1
     return gr.update(visible=var)
 
+
 axis_get = {
         'presets': get_presets(),
-        'prompts': kickback(),
+        'prompts': "",
         'characters': get_characters(),
         'seeds': "-1"
         }
+
 
 # Create the interface for the extension (this runs first)
 def ui():
@@ -322,7 +339,7 @@ def ui():
     global axis_type
     global axis_get
 
-    # Grab all of the variable from shared.gradio and put them in the custom_state dictionary
+    # Grab all the variable from shared.gradio and put them in the custom_state dictionary
     custom_state.update({k: v for k, v in zip([key for key in shared.gradio if not isinstance(shared.gradio[key], (gr.Blocks, gr.Button, gr.State))], [shared.gradio[k].value for k in [key for key in shared.gradio] if not isinstance(shared.gradio[k], (gr.Blocks, gr.Button, gr.State))])})
 
     # Track changes to all variables in shared.gradio
@@ -392,28 +409,26 @@ def ui():
 
         # Axis selections and inputs
         with gr.Row():
-            xType = gr.Dropdown(label='X Axis', choices=list(["prompts","presets","characters","seeds"]), value="prompts", interactive=True)
-            xInput = gr.Textbox(label=xType.value, interactive=True)
+            x_type = gr.Dropdown(label='X Axis', choices=list(["prompts", "presets", "characters", "seeds"]), value="prompts", interactive=True)
+            x_input = gr.Textbox(label=x_type.value, interactive=True)
         with gr.Row():
-            yType = gr.Dropdown(label='Y Axis', choices=["prompts","presets","characters", "seeds"], value="presets", interactive=True)
-            yInput = gr.Textbox(label=yType.value, value=axis_get[yType.value], interactive=True)
-        xType.select(set_axis, [xType, yType], []).then(fill_axis, xType, xInput)
-        yType.select(set_axis, [xType, yType], []).then(fill_axis, yType, yInput)
-        xType.change(set_axis, [xType, yType], [])
-        yType.change(set_axis, [xType, yType], [])
+            y_type = gr.Dropdown(label='Y Axis', choices=["prompts", "presets", "characters", "seeds"], value="presets", interactive=True)
+            y_input = gr.Textbox(label=y_type.value, value=axis_get[y_type.value], interactive=True)
+        x_type.select(set_axis, [x_type, y_type], []).then(fill_axis, x_type, x_input)
+        y_type.select(set_axis, [x_type, y_type], []).then(fill_axis, y_type, y_input)
+        x_type.change(set_axis, [x_type, y_type], [])
+        y_type.change(set_axis, [x_type, y_type], [])
         with gr.Row():
-            swapXY = gr.Button(value='Swap X/Y Axes 🔀')
+            swap_xy = gr.Button(value='Swap X/Y Axes 🔀')
         with gr.Row():
-            seedInput = gr.Checkbox(label='Use a constant seed', value=False)
-            useHistory = gr.Checkbox(label='Use character\'s chat history', value=False)
+            seed_input = gr.Checkbox(label='Use a constant seed', value=False)
+            use_history = gr.Checkbox(label='Use character\'s chat history', value=False)
         with gr.Row():
-            seedValue = gr.Textbox(label='Seed', value="-1", visible=False, interactive=True)
-        seedInput.change(toggle_visible, seedInput, seedValue)
-        swapXY.click(swap_axes, [xType, xInput, yType, yInput], [xType, xInput, xInput, yType, yInput, yInput])
-
-
+            seed_value = gr.Textbox(label='Seed', value="-1", visible=False, interactive=True)
+        seed_input.change(toggle_visible, seed_input, seed_value)
+        swap_xy.click(swap_axes, [x_type, x_input, y_type, y_input], [x_type, x_input, x_input, y_type, y_input, y_input])
 
         generate_grid = gr.Button("generate_grid")
         custom_chat = gr.HTML(value="")
 
-        generate_grid.click(run, [seedInput, seedValue, useHistory, xInput, yInput], custom_chat)
+        generate_grid.click(run, [seed_input, seed_value, use_history, x_input, y_input], custom_chat)
