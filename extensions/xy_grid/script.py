@@ -13,7 +13,7 @@ from pathlib import Path
 axis_type = {'x': "prompts", 'y': "presets"}
 custom_state = {}
 gen_output = []
-
+axis_options = ["prompts", "presets", "characters", "seed", "max_new_tokens", "temperature", "top_p", "top_k", "typical_p", "repetition_penalty", "encoder_repetition_penalty", "no_repeat_ngram_size", "min_length", "do_sample", "penalty_alpha", "num_beams", "end_of_turn", "chat_prompt_size", "chat_generation_attempts", "stop_at_newline", "mode"]
 
 # I had to steal this from server.py because the program freaks out if I try to `import server`
 def load_preset_values(preset_menu, state):
@@ -65,10 +65,14 @@ def get_presets():
 def fill_axis(option):
     global axis_get
     global custom_state
-    if option == "prompts":
+    if option == "presets":
+        return gr.update(label=option, value=get_presets())
+    elif option == "characters":
+        return gr.update(label=option, value=get_characters())
+    elif option == "prompts":
         return gr.update(label=option, value=custom_state['textbox'])
     else:
-        return gr.update(label=option, value=axis_get.get(option))
+        return gr.update(label=option, value=custom_state[option])
 
 
 # Sets the type of data each axis will use
@@ -99,17 +103,11 @@ def parse_axis(axis, value):
             custom_state['character_menu'] = shared.gradio["character_menu"].value
         custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
     # SEEDS
-    elif axis_type[axis] == "seeds":
+    else:
         if value.strip() != "":
-            custom_state['seed'] = value.strip()
+            custom_state[axis_type[axis]] = value.strip()
         else:
-            custom_state['seed'] = shared.gradio['seed'].value
-#    # TEMPLATE
-#    elif axis_type[axis] == "":
-#        if value.strip() != "":
-#            custom_state[''] = value.strip()
-#        else:
-#            custom_state[''] = shared.gradio[''].value
+            custom_state[axis_type[axis]] = shared.gradio[axis_type[axis]].value
     return None
 
 
@@ -125,7 +123,8 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
         else:
             custom_state['seed'] = seed_value
 
-    temp_history = shared.history['internal']
+    temp_internal = shared.history['internal']
+    temp_visible = shared.history['visible']
 
     # Gather output json info, from before the X/Y parameters take effect
     output_json = {k: custom_state[k] for k in shared.input_elements}
@@ -164,11 +163,15 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     # This was at the top of the function, but for some reason it broke with a recent update
                     if not use_history:
                         shared.history['internal'] = shared.history['internal'][:1]
+                        shared.history['visible'] = shared.history['visible'][:1]
 
                     # This is the part that actually does the generating
                     for new in chatbot_wrapper(j.strip().strip('"'), custom_state):
                         gen_output = new
 
+
+                    if len(gen_output) == 0:
+                        gen_output = [['','']]
                     output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
                     gen_output.pop()
                     shared.history['internal'].pop()
@@ -179,6 +182,10 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
             for i in x_strings:
                 for new in chatbot_wrapper(i.strip().strip('"'), custom_state):
                     gen_output = new
+
+
+                    if len(gen_output) == 0:
+                        gen_output = [['','']]
                 output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
 
                 # Remove the last outputs, so they don't influence future generations
@@ -203,11 +210,15 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     # This was at the top of the function, but for some reason it broke with a recent update
                     if not use_history:
                         shared.history['internal'] = shared.history['internal'][:1]
+                        shared.history['visible'] = shared.history['visible'][:1]
 
                     # This is the part that actually does the generating
                     for new in chatbot_wrapper(i.strip().strip('"'), custom_state):
                         gen_output = new
 
+
+                    if len(gen_output) == 0:
+                        gen_output = [['','']]
                     output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
                     gen_output.pop()
                     shared.history['internal'].pop()
@@ -239,11 +250,15 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     # This was at the top of the function, but for some reason it broke with a recent update
                     if not use_history:
                         shared.history['internal'] = shared.history['internal'][:1]
+                        shared.history['visible'] = shared.history['visible'][:1]
 
                     # This is the part that actually does the generating
                     for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
                         gen_output = new
 
+
+                    if len(gen_output) == 0:
+                        gen_output = [['','']]
                     output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
                     gen_output.pop()
                     shared.history['internal'].pop()
@@ -260,10 +275,15 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                 # This was at the top of the function, but for some reason it broke with a recent update
                 if not use_history:
                     shared.history['internal'] = shared.history['internal'][:1]
+                    shared.history['visible'] = shared.history['visible'][:1]
 
                 # Run the actual text generator
                 for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
                     gen_output = new
+
+
+                    if len(gen_output) == 0:
+                        gen_output = [['','']]
                 output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
 
                 # Remove the last outputs, so they don't influence future generations
@@ -280,6 +300,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                 # This was at the top of the function, but for some reason it broke with a recent update
                 if not use_history:
                     shared.history['internal'] = shared.history['internal'][:1]
+                    shared.history['visible'] = shared.history['visible'][:1]
                     
                 # Run the actual text generator
                 for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
@@ -310,7 +331,8 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
 
     # Clean up some of the changes that were made during this generation
     custom_state['seed'] = -1
-    shared.history['internal'] = temp_history
+    shared.history['internal'] = temp_internal
+    shared.history['visible'] = temp_visible
     return output
 
 
@@ -329,7 +351,7 @@ axis_get = {
         'presets': get_presets(),
         'prompts': "",
         'characters': get_characters(),
-        'seeds': "-1"
+        'seed': "-1"
         }
 
 
@@ -409,10 +431,10 @@ def ui():
 
         # Axis selections and inputs
         with gr.Row():
-            x_type = gr.Dropdown(label='X Axis', choices=list(["prompts", "presets", "characters", "seeds"]), value="prompts", interactive=True)
+            x_type = gr.Dropdown(label='X Axis', choices=axis_options, value="prompts", interactive=True)
             x_input = gr.Textbox(label=x_type.value, interactive=True)
         with gr.Row():
-            y_type = gr.Dropdown(label='Y Axis', choices=["prompts", "presets", "characters", "seeds"], value="presets", interactive=True)
+            y_type = gr.Dropdown(label='Y Axis', choices=axis_options, value="presets", interactive=True)
             y_input = gr.Textbox(label=y_type.value, value=axis_get[y_type.value], interactive=True)
         x_type.select(set_axis, [x_type, y_type], []).then(fill_axis, x_type, x_input)
         y_type.select(set_axis, [x_type, y_type], []).then(fill_axis, y_type, y_input)
