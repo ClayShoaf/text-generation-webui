@@ -102,7 +102,19 @@ def parse_axis(axis, value):
         else:
             custom_state['character_menu'] = shared.gradio["character_menu"].value
         custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
-    # SEEDS
+    # FLOATERS
+    elif axis_type[axis] in ("temperature", "top_p", "typical_p", "repetition_penalty", "encoder_repetition_penalty"):
+        if value.strip() != "":
+            custom_state[axis_type[axis]] = float(value.strip())
+        else:
+            custom_state[axis_type[axis]] = shared.gradio[axis_type[axis]].value
+    # INTS
+    elif axis_type[axis] in ("top_k", "max_new_tokens"):
+        if value.strip() != "":
+            custom_state[axis_type[axis]] = int(value.strip())
+        else:
+            custom_state[axis_type[axis]] = shared.gradio[axis_type[axis]].value
+    # ANY
     else:
         if value.strip() != "":
             custom_state[axis_type[axis]] = value.strip()
@@ -117,6 +129,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
     global gen_output
     global axis_type
 
+    shared.args.no_stream = True
     if constant_seed:
         if seed_value == "-1":
             custom_state['seed'] = random.randint(1, 2**31)
@@ -142,7 +155,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
     else:
         y_strings = pp.common.comma_separated_list.parseString(y).asList()
 
-    output = "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;}</style><table><thead><tr><th></th>"
+    output = "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;}</style><table><thead>" + f"<tr><th>X={axis_type['x']}<br>Y={axis_type['y']}</th>"
 
     if axis_type['x'] == axis_type['y']:
         return "<h1><span style=\"color: red;\">ERROR: both axes cannot be the same setting</span>"
@@ -174,9 +187,11 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                         gen_output = [['','']]
                     output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
                     gen_output.pop()
-                    shared.history['internal'].pop()
+                    if len(shared.history['internal']) > 1:
+                        shared.history['internal'].pop()
 
                 output = output + "</tr>"
+
         else:
             output = output + "<tr><th></th>"
             for i in x_strings:
@@ -190,7 +205,8 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
-                shared.history['internal'].pop()
+                if len(shared.history['internal']) > 1:
+                    shared.history['internal'].pop()
 
             output = output + "</tr>"
 
@@ -221,9 +237,11 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                         gen_output = [['','']]
                     output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
                     gen_output.pop()
-                    shared.history['internal'].pop()
+                    if len(shared.history['internal']) > 1:
+                        shared.history['internal'].pop()
 
                 output = output + "</tr>"
+
         else:
             for i in y_strings:
                 for new in chatbot_wrapper(i.strip().strip('"'), custom_state):
@@ -232,7 +250,8 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
-                shared.history['internal'].pop()
+                if len(shared.history['internal']) > 1:
+                    shared.history['internal'].pop()
 
     # Take the prompts from custom_state['textbox']
     else:
@@ -261,7 +280,8 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                         gen_output = [['','']]
                     output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
                     gen_output.pop()
-                    shared.history['internal'].pop()
+                    if len(shared.history['internal']) > 1:
+                        shared.history['internal'].pop()
 
                 output = output + "</tr>"
 
@@ -288,7 +308,8 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
-                shared.history['internal'].pop()
+                if len(shared.history['internal']) > 1:
+                    shared.history['internal'].pop()
 
             output = output + "</tr>"
         
@@ -309,7 +330,8 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
-                shared.history['internal'].pop()
+                if len(shared.history['internal']) > 1:
+                    shared.history['internal'].pop()
 
         else:
             return "<h1><span style=\"color: red;\">ERROR: both fields are empty</span>"
@@ -334,6 +356,8 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
     shared.history['internal'] = temp_internal
     shared.history['visible'] = temp_visible
     return output
+
+
 
 
 # Necessary for some stuff because gradio
