@@ -65,7 +65,6 @@ def get_presets():
 
 # Returns the correct results for the axis type chosen by the axis dropdown box
 def fill_axis(option):
-    global axis_get
     global custom_state
     if option == "presets":
         return gr.update(label=option, value=get_presets())
@@ -394,19 +393,10 @@ def toggle_visible(var):
     return gr.update(visible=var)
 
 
-axis_get = {
-        'presets': get_presets(),
-        'prompts': "",
-        'characters': get_characters(),
-        'seed': "-1"
-        }
-
-
 # Create the interface for the extension (this runs first)
 def ui():
     global custom_state
     global axis_type
-    global axis_get
 
     # Grab all the variable from shared.gradio and put them in the custom_state dictionary
     custom_state.update({k: v for k, v in zip([key for key in shared.gradio if not isinstance(shared.gradio[key], (gr.Blocks, gr.Button, gr.State))], [shared.gradio[k].value for k in [key for key in shared.gradio] if not isinstance(shared.gradio[k], (gr.Blocks, gr.Button, gr.State))])})
@@ -482,7 +472,7 @@ def ui():
             x_input = gr.Textbox(label=x_type.value, interactive=True)
         with gr.Row():
             y_type = gr.Dropdown(label='Y Axis', choices=axis_options, value="presets", interactive=True)
-            y_input = gr.Textbox(label=y_type.value, value=axis_get[y_type.value], interactive=True)
+            y_input = gr.Textbox(label=y_type.value, value=get_presets, interactive=True)
         x_type.select(set_axis, [x_type, y_type], []).then(fill_axis, x_type, x_input)
         y_type.select(set_axis, [x_type, y_type], []).then(fill_axis, y_type, y_input)
         x_type.change(set_axis, [x_type, y_type], [])
