@@ -14,7 +14,7 @@ from pathlib import Path
 axis_type = {'x': "prompts", 'y': "presets"}
 custom_state = {}
 gen_output = []
-axis_options = ["prompts", "presets", "characters", "instruction template", "seed", "max_new_tokens", "temperature", "top_p", "top_k", "typical_p", "repetition_penalty", "encoder_repetition_penalty", "no_repeat_ngram_size", "min_length"]
+axis_options = ["prompts", "presets", "characters", "seed", "max_new_tokens", "temperature", "top_p", "top_k", "typical_p", "repetition_penalty", "encoder_repetition_penalty", "no_repeat_ngram_size", "min_length"]
 
 # I had to steal this from server.py because the program freaks out if I try to `import server`
 def load_preset_values(preset_menu, state):
@@ -125,14 +125,6 @@ def parse_axis(axis, value):
         else:
             custom_state[char_type] = shared.gradio[char_type].value
         custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state[char_type], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
-    # INSTRUCT
-    elif axis_type[axis] == "instruction template":
-        custom_state['mode'] = 'instruct'
-        if value.strip() != "":
-            custom_state['instruction_template'] = value.strip()
-        else:
-            custom_state['instruction_template'] = shared.gradio["instruction_template"].value
-        custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['instruction_template'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
     # FLOATS
     elif axis_type[axis] in ("seed", "temperature", "top_p", "typical_p", "repetition_penalty", "encoder_repetition_penalty"):
         if value.strip() != "":
