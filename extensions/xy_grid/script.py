@@ -8,12 +8,13 @@ import modules.shared as shared
 import pyparsing as pp
 
 from modules.chat import chatbot_wrapper, load_character
+from modules.html_generator import convert_to_markdown
 from pathlib import Path
 
 axis_type = {'x': "prompts", 'y': "presets"}
 custom_state = {}
 gen_output = []
-axis_options = ["prompts", "presets", "characters", "seed", "max_new_tokens", "temperature", "top_p", "top_k", "typical_p", "repetition_penalty", "encoder_repetition_penalty", "no_repeat_ngram_size", "min_length", "do_sample", "penalty_alpha", "num_beams", "end_of_turn", "chat_prompt_size", "chat_generation_attempts", "stop_at_newline", "mode"]
+axis_options = ["prompts", "presets", "characters", "seed", "max_new_tokens", "temperature", "top_p", "top_k", "typical_p", "repetition_penalty", "encoder_repetition_penalty", "no_repeat_ngram_size", "min_length"]
 
 # I had to steal this from server.py because the program freaks out if I try to `import server`
 def load_preset_values(preset_menu, state):
@@ -54,10 +55,11 @@ def get_characters():
 # Get all of the presets from the presets folder
 def get_presets():
     presets = []
-    filenames = os.listdir("presets/")
+    filenames = sorted(os.listdir("presets/"))
     for file in filenames:
         preset = file[:-4]
         presets.append(preset)
+    presets.remove("Verbose (Beam Search)")
     return ", ".join(presets)
 
 
@@ -84,7 +86,7 @@ def set_axis(x, y):
 
 # Parse the type of the X axis and alter custom_state accordingly
 # If you want to add more axes, this is where you would do it. 
-# Add logic here, add an entry to axis_type{}, and add it to the dropdown menus
+# Add logic here and include it in axis_options
 def parse_axis(axis, value):
     global custom_state
     global axis_type
@@ -102,14 +104,14 @@ def parse_axis(axis, value):
         else:
             custom_state['character_menu'] = shared.gradio["character_menu"].value
         custom_state.update({k: v for k, v in zip(['name1', 'name2', 'character_picture', 'greeting', 'context', 'end_of_turn', 'display'], load_character(custom_state['character_menu'], custom_state['name1'], custom_state['name2'], custom_state['mode']))})
-    # FLOATERS
-    elif axis_type[axis] in ("temperature", "top_p", "typical_p", "repetition_penalty", "encoder_repetition_penalty"):
+    # FLOATS
+    elif axis_type[axis] in ("seed", "temperature", "top_p", "typical_p", "repetition_penalty", "encoder_repetition_penalty"):
         if value.strip() != "":
             custom_state[axis_type[axis]] = float(value.strip())
         else:
             custom_state[axis_type[axis]] = shared.gradio[axis_type[axis]].value
     # INTS
-    elif axis_type[axis] in ("top_k", "max_new_tokens"):
+    elif axis_type[axis] in ("top_k", "max_new_tokens", "no_repeat_ngram_size", "min_length"):
         if value.strip() != "":
             custom_state[axis_type[axis]] = int(value.strip())
         else:
@@ -155,7 +157,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
     else:
         y_strings = pp.common.comma_separated_list.parseString(y).asList()
 
-    output = "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;}</style><table><thead>" + f"<tr><th>X={axis_type['x']}<br>Y={axis_type['y']}</th>"
+    output =  "<style>table {border-collapse: collapse;border: 1px solid black;}th, td {border: 1px solid black;padding: 5px;} em {color: gray} body {font-family: 'Helvetica', Arial, sans-serif; }</style><table><thead>" + f"<tr><th>X={axis_type['x']}<br>Y={axis_type['y']}</th>"
 
     if axis_type['x'] == axis_type['y']:
         return "<h1><span style=\"color: red;\">ERROR: both axes cannot be the same setting</span>"
@@ -182,10 +184,13 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     for new in chatbot_wrapper(j.strip().strip('"'), custom_state):
                         gen_output = new
 
-
                     if len(gen_output) == 0:
                         gen_output = [['','']]
-                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
+                    user_output = convert_to_markdown(gen_output[-1][0])
+                    bot_output = convert_to_markdown(gen_output[-1][1])
+                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
+
+                    # Remove the last outputs, so they don't influence future generations
                     gen_output.pop()
                     if len(shared.history['internal']) > 1:
                         shared.history['internal'].pop()
@@ -198,10 +203,11 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                 for new in chatbot_wrapper(i.strip().strip('"'), custom_state):
                     gen_output = new
 
-
-                    if len(gen_output) == 0:
-                        gen_output = [['','']]
-                output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
+                if len(gen_output) == 0:
+                    gen_output = [['','']]
+                user_output = convert_to_markdown(gen_output[-1][0])
+                bot_output = convert_to_markdown(gen_output[-1][1])
+                output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
@@ -232,10 +238,13 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     for new in chatbot_wrapper(i.strip().strip('"'), custom_state):
                         gen_output = new
 
-
                     if len(gen_output) == 0:
                         gen_output = [['','']]
-                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
+                    user_output = convert_to_markdown(gen_output[-1][0])
+                    bot_output = convert_to_markdown(gen_output[-1][1])
+                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
+
+                    # Remove the last outputs, so they don't influence future generations
                     gen_output.pop()
                     if len(shared.history['internal']) > 1:
                         shared.history['internal'].pop()
@@ -246,7 +255,12 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
             for i in y_strings:
                 for new in chatbot_wrapper(i.strip().strip('"'), custom_state):
                     gen_output = new
-                output = output + f"<tr><tr><th>{i.strip()}</th><td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td></tr>"
+
+                if len(gen_output) == 0:
+                    gen_output = [['','']]
+                user_output = convert_to_markdown(gen_output[-1][0])
+                bot_output = convert_to_markdown(gen_output[-1][1])
+                output = output + f"<tr><tr><th>{i.strip()}</th><td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td></tr>"
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
@@ -275,10 +289,13 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
                         gen_output = new
 
-
                     if len(gen_output) == 0:
                         gen_output = [['','']]
-                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
+                    user_output = convert_to_markdown(gen_output[-1][0])
+                    bot_output = convert_to_markdown(gen_output[-1][1])
+                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
+
+                    # Remove the last outputs, so they don't influence future generations
                     gen_output.pop()
                     if len(shared.history['internal']) > 1:
                         shared.history['internal'].pop()
@@ -301,10 +318,11 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                 for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
                     gen_output = new
 
-
-                    if len(gen_output) == 0:
-                        gen_output = [['','']]
-                output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td>"
+                if len(gen_output) == 0:
+                    gen_output = [['','']]
+                user_output = convert_to_markdown(gen_output[-1][0])
+                bot_output = convert_to_markdown(gen_output[-1][1])
+                output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
@@ -326,7 +344,12 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                 # Run the actual text generator
                 for new in chatbot_wrapper(custom_state['textbox'].strip(), custom_state):
                     gen_output = new
-                output = output + f"<tr><th>{i.strip()}</th><td><h3><b>{custom_state['name1']}:</b></h3> {gen_output[-1][0]}<br><h3><b>{custom_state['name2']}:</b></h3> {gen_output[-1][1]}</td></tr>"
+
+                if len(gen_output) == 0:
+                    gen_output = [['','']]
+                user_output = convert_to_markdown(gen_output[-1][0])
+                bot_output = convert_to_markdown(gen_output[-1][1])
+                output = output + f"<tr><th>{i.strip()}</th><td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td></tr>"
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
@@ -349,7 +372,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
         outparams.write(json.dumps(output_json))
 
     # Include a link to the generated HTML file
-    output = output + f"<br><br><h2><a href=\"file/extensions/xy_grid/outputs/{output_filename}.html\" target=\"_blank\">[ <em>open html file 🔗</em> ]</a></h2>"
+    output = f"<h3><a href=\"file/extensions/xy_grid/outputs/{output_filename}.html\" target=\"_blank\">[ <em>open html file 🔗</em> ]</a></h3><br><br>" + output
 
     # Clean up some of the changes that were made during this generation
     custom_state['seed'] = -1
