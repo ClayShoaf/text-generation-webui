@@ -315,8 +315,13 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                 output = output + f"<tr><th>{i.strip()}</th>"
                 for j in x_strings:
                     # parse the types of the axes and alter custom_state accordingly
-                    parse_axis("y", i)
-                    parse_axis("x", j)
+                    # in this case, we need to make sure we parse presets first, so it doesn't overwrite lower level settings
+                    if axis_type['y'] == "presets":
+                        parse_axis("y", i)
+                        parse_axis("x", j)
+                    else:
+                        parse_axis("x", j)
+                        parse_axis("y", i)
 
                     # This was at the top of the function, but for some reason it broke with a recent update
                     if not use_history:
