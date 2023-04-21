@@ -161,7 +161,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
 
     temp_internal = shared.history['internal']
     temp_visible = shared.history['visible']
-    temp_custom_state = custom_state
+    temp_custom_state = custom_state.copy()
 
     # Gather output json info, from before the X/Y parameters take effect
     output_json = {k: custom_state[k] for k in shared.input_elements}
@@ -214,7 +214,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     if custom_state['mode'] == 'instruct':
                         output = output + f"<td><b>{custom_state['name1']}</b> {user_output}<b>{custom_state['name2']}</b> {bot_output}</td>"
                     else:
-                        output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
+                        output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
 
                     # Remove the last outputs, so they don't influence future generations
                     gen_output.pop()
@@ -237,7 +237,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                 if custom_state['mode'] == 'instruct':
                     output = output + f"<td><b>{custom_state['name1']}</b> {user_output}<b>{custom_state['name2']}</b> {bot_output}</td>"
                 else:
-                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
+                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
@@ -276,7 +276,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     if custom_state['mode'] == 'instruct':
                         output = output + f"<td><b>{custom_state['name1']}</b> {user_output}<b>{custom_state['name2']}</b> {bot_output}</td>"
                     else:
-                        output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
+                        output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
 
                     # Remove the last outputs, so they don't influence future generations
                     gen_output.pop()
@@ -296,9 +296,9 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                 bot_output = convert_to_markdown(gen_output[-1][1])
 
                 if custom_state['mode'] == 'instruct':
-                    output = output + f"<td><b>{custom_state['name1']}</b> {user_output}<b>{custom_state['name2']}</b> {bot_output}</td>"
+                    output = output + f"<tr><tr><th>{i.strip()}</th><td><b>{custom_state['name1']}</b> {user_output}<b>{custom_state['name2']}</b> {bot_output}</td></tr>"
                 else:
-                    output = output + f"<tr><tr><th>{i.strip()}</th><td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td></tr>"
+                    output = output + f"<tr><tr><th>{i.strip()}</th><td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td></tr>"
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
@@ -335,7 +335,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                     if custom_state['mode'] == 'instruct':
                         output = output + f"<td><b>{custom_state['name1']}</b> {user_output}<b>{custom_state['name2']}</b> {bot_output}</td>"
                     else:
-                        output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
+                        output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
 
                     # Remove the last outputs, so they don't influence future generations
                     gen_output.pop()
@@ -368,7 +368,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                 if custom_state['mode'] == 'instruct':
                     output = output + f"<td><b>{custom_state['name1']}</b> {user_output}<b>{custom_state['name2']}</b> {bot_output}</td>"
                 else:
-                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
+                    output = output + f"<td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td>"
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
@@ -397,9 +397,9 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
                 bot_output = convert_to_markdown(gen_output[-1][1])
 
                 if custom_state['mode'] == 'instruct':
-                    output = output + f"<td><b>{custom_state['name1']}</b> {user_output}<b>{custom_state['name2']}</b> {bot_output}</td>"
+                    output = output + f"<tr><th>{i.strip()}</th><td><b>{custom_state['name1']}</b> {user_output}<b>{custom_state['name2']}</b> {bot_output}</td></tr>"
                 else:
-                    output = output + f"<tr><th>{i.strip()}</th><td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<br><h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td></tr>"
+                    output = output + f"<tr><th>{i.strip()}</th><td><h3><b>{custom_state['name1']}:</b></h3> {user_output}<h3><b>{custom_state['name2']}:</b></h3> {bot_output}</td></tr>"
 
                 # Remove the last outputs, so they don't influence future generations
                 gen_output.pop()
@@ -428,7 +428,7 @@ def run(constant_seed, seed_value, use_history, x="", y=""):
     custom_state['seed'] = -1
     shared.history['internal'] = temp_internal
     shared.history['visible'] = temp_visible
-    custom_state = temp_custom_state
+    custom_state = temp_custom_state.copy()
     return output
 
 
