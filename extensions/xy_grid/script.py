@@ -1,16 +1,17 @@
-import os
-import json
 import datetime
+import json
+import os
 import random
 import time
+from pathlib import Path
 
 import gradio as gr
-import modules.shared as shared
 import pyparsing as pp
 
+import modules.shared as shared
 from modules.chat import chatbot_wrapper, load_character
 from modules.html_generator import convert_to_markdown
-from pathlib import Path
+from server import load_preset_values
 
 # Global variables
 axis_type = {'x': "prompts", 'y': "presets"}
@@ -18,34 +19,22 @@ custom_state = {}
 gen_output = []
 axis_options = ["prompts", "presets", "characters", "seed", "max_new_tokens", "temperature", "top_p", "top_k", "typical_p", "repetition_penalty", "encoder_repetition_penalty", "no_repeat_ngram_size", "min_length"]
 
-# I had to steal this from server.py because the program freaks out if I try to `import server`
-def load_preset_values(preset_menu, state):
-    generate_params = {
-        'do_sample': True,
-        'temperature': 1,
-        'top_p': 1,
-        'typical_p': 1,
-        'repetition_penalty': 1,
-        'encoder_repetition_penalty': 1,
-        'top_k': 50,
-        'num_beams': 1,
-        'penalty_alpha': 0,
-        'min_length': 0,
-        'length_penalty': 1,
-        'no_repeat_ngram_size': 0,
-        'early_stopping': False,
-    }
-    with open(Path(f'presets/{preset_menu}.txt'), 'r') as infile:
-        preset = infile.read()
-    for i in preset.splitlines():
-        i = i.rstrip(',').strip().split('=')
-        if len(i) == 2 and i[0].strip() != 'tokens':
-            generate_params[i[0].strip()] = eval(i[1].strip())
-    generate_params['temperature'] = min(1.99, generate_params['temperature'])
 
-    state.update(generate_params)
-    custom_state['preset_menu'] = preset_menu
-    return state, *[generate_params[k] for k in ['do_sample', 'temperature', 'top_p', 'typical_p', 'repetition_penalty', 'encoder_repetition_penalty', 'top_k', 'min_length', 'no_repeat_ngram_size', 'num_beams', 'penalty_alpha', 'length_penalty', 'early_stopping']]
+# Get all of the characters from the character folder
+def get_characters():
+    paths = (x for x in Path('characters').iterdir() if x.suffix in ('.json', '.yaml', '.yml'))
+    instructors = []
+    filenames = sorted(os.listdir("characters/instruction-following/"))
+    for file in filenames:
+        instructor = "instruction-following/" + file[:-5]
+        instructors.append(instructor)
+    return ", ".join(['None'] + sorted(set((k.stem for k in paths if k.stem != "instruction-following")), key=str.lower) + instructors)
+
+
+# Get all of the instruction following templates from the character folder
+def get_instruct():
+    paths = (x for x in Path('characters/instruction-following').iterdir() if x.suffix in ('.json', '.yaml', '.yml'))
+    return ", ".join(['None'] + sorted(set((k.stem for k in paths)), key=str.lower))
 
 
 # Get all of the characters from the character folder
@@ -99,7 +88,7 @@ def set_axis(x, y):
 
 
 # Parse the type of the X axis and alter custom_state accordingly
-# If you want to add more axes, this is where you would do it. 
+# If you want to add more axes, this is where you would do it.
 # Add logic here and include it in axis_options
 def parse_axis(axis, value):
     global custom_state
